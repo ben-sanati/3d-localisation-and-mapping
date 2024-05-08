@@ -1,5 +1,13 @@
 # Data
 *.db
+*.png
+*.out
+
+# Models
+yolov7
+
+# Virtual environments
+env
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
