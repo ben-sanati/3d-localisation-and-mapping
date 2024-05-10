@@ -47,7 +47,7 @@ if __name__ == '__main__':
         iou_thresh=iou_thresh,
         img_size=img_size,
         view_img=False,
-        save_img="src/common/out/content"
+        save_img="src/common/data/gold_std/processed_img"
     )
 
     # Run inference

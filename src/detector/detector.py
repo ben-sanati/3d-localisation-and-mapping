@@ -138,7 +138,7 @@ class ObjectDetector(nn.Module):
 
                 # add filled bboxes with object label above bboxes
                 c1, c2 = (int(box[0]), int(box[1])), (int(box[2]), int(box[3]))
-                line_thickness = 1.5  # line/font thickness
+                line_thickness = 1.1  # line/font thickness
                 tf = max(line_thickness - 1, 1)  # font thickness
                 t_size = cv2.getTextSize(self.names[label], 0, fontScale=line_thickness / 3, thickness=tf)[0]
                 c2 = int(box[0]) + t_size[0], int(box[1]) - t_size[1] - 3
