@@ -3,9 +3,10 @@
 *.ply
 *.png
 *.out
+*.pt
 
 # Models
-yolov7
+src/detector/yolov7
 
 # Virtual environments
 env
