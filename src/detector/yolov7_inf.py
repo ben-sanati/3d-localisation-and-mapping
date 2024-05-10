@@ -172,7 +172,7 @@ class ObjectDetector(nn.Module):
 
         # save image
         head, tail = ntpath.split(path)
-        data_dst = os.path.join("./out", tail)
+        data_dst = os.path.join("./out/test_img", tail)
         cv2.imwrite(data_dst, im0)
 
     def _resize_bbox(self, bbox, image_height, image_width):
