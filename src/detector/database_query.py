@@ -24,8 +24,6 @@ class ImageExtractor:
         for row in cursor.fetchall():
             image_data = np.frombuffer(row[0], dtype=np.uint8)
             image = cv2.imdecode(image_data, cv2.IMREAD_COLOR)
-            calibration = row[1]
-            pose = row[2]
             data.append(image)
 
         return data
