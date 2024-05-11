@@ -12,13 +12,13 @@ class Mapping:
         self.vis = o3d.visualization.Visualizer()
         self.vis.create_window()
 
-    def make_point_cloud(self):
-        # Add the point cloud to the visualizer
-        self.vis.add_geometry(self.pcd)
-
         # Get the rendering options
         opt = self.vis.get_render_option()
         opt.point_size = 1.0  # Set the point size to smaller values
+
+    def make_point_cloud(self):
+        # Add the point cloud to the visualizer
+        self.vis.add_geometry(self.pcd)
 
         # Run the visualizer
         self.vis.run()

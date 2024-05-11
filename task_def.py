@@ -63,9 +63,9 @@ if __name__ == '__main__':
     print("Extracting Pose Information...", flush=True)
     pose_path = 'src/common/data/gold_std/poses.txt'
     extractor = PoseDataExtractor(pose_path)
-    data = extractor.fetch_data()
+    df = extractor.fetch_data()
     print("Pose Information Extracted")
-    print(data)
+    print(df)
 
     # Map the bounding box information to the global 3D map
     mapper = Mapping(r"src/common/data/gold_std/cloud.ply")
