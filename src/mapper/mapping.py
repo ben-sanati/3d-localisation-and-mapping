@@ -1,12 +1,17 @@
+import psutil
 import numpy as np
 import open3d as o3d
 import matplotlib.pyplot as plt
 
 
+def log_memory_usage():
+    print(f"\tCurrent memory usage: {psutil.Process().memory_info().rss / 1024 ** 2:.2f} MB", flush=True)
+
+
 class Mapping:
     def __init__(
         self,
-        global_bboxes_data,
+        global_bboxes_data=None,
         eps=0.04,
         min_points=10,
         ply_filepath=r"../common/data/gold_std/cloud.ply",
@@ -131,9 +136,9 @@ class Mapping:
         # Make mesh
         self.vis.add_geometry(data)
 
-        # Add bounding boxes to the visualizer
-        for bbox in self.global_bboxes_data:
-            print(f"BBox: {bbox}", flush=True)
+        # # Add bounding boxes to the visualizer
+        # for bbox in self.global_bboxes_data:
+        #     print(f"BBox: {bbox}", flush=True)
             # points = [bbox[corner] for corner in range(4)]
             # line_set = o3d.geometry.LineSet(
             #     points=o3d.utility.Vector3dVector(points),
@@ -150,9 +155,12 @@ if __name__ == '__main__':
     mapper = Mapping(
         eps=0.04,
         min_points=10,
-        ply_filepath=r"../common/data/gold_std/cloud.ply"
+        ply_filepath=r"../common/data/gold_std/cloud.ply",
+        preprocess_point_cloud=False,
     )
+    log_memory_usage()
 
     # Either make a point cloud or a mesh
-    # mapper.make_point_cloud()
-    mapper.make_mesh()
+    mapper.make_point_cloud()
+    log_memory_usage()
+    # mapper.make_mesh()

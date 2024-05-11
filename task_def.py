@@ -1,7 +1,10 @@
 import os
 import gc
 import sys
+import psutil
+from memory_profiler import profile
 
+import torch
 from torch.utils.data import DataLoader
 
 from src.detector.database_query import ImageExtractor
@@ -20,28 +23,26 @@ sys.path.append(
     )
 )
 
-if __name__ == '__main__':
-    img_size = 640
-    batch_size = 16
-    conf_thresh = 0.5
-    iou_thresh = 0.65
 
-    # ################# #
-    # Extracting Images #
-    # ################# #
+def log_memory_usage():
+    print(f"\tCurrent memory usage: {psutil.Process().memory_info().rss / 1024 ** 2:.2f} MB", flush=True)
 
+@profile
+def extract_images(db_path):
     print("Extracting frames...", flush=True)
-    db_path = r"src/common/data/gold_std/data.db"
     extractor = ImageExtractor(db_path, img_size)
     images, depth_images = extractor.fetch_data()
+    log_memory_usage()
+
+    # Garbage collection
     del extractor
     gc.collect()
     print("Frames extracted.\n", flush=True)
 
-    # ############### #
-    # Detecting Signs #
-    # ############### #
+    return images, depth_images
 
+@profile
+def detect_signs(images, img_size, batch_size, conf_thresh, iou_thresh):
     # Create dataset
     dataset = ImageDataset(images, img_size=img_size)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
@@ -56,23 +57,26 @@ if __name__ == '__main__':
         view_img=False,
         save_img="src/common/data/gold_std/processed_img",
     )
+    log_memory_usage()
 
     # Run inference
     predictions = model(dataloader)
+
+    # Perform garbage collection
+    torch.cuda.empty_cache()
+    del images
     del dataset
     del dataloader
     del model
     gc.collect()
-    print(predictions)
     print("Inference Complete!\n", flush=True)
 
-    # ########################### #
-    # Map Detected Objects to Map #
-    # ########################### #
+    return predictions
 
+@profile
+def map_detected_objects(pose_path, depth_images, predictions):
     # Get the node information from the table
-    print("Extracting Pose Information...", flush=True)
-    pose_path = 'src/common/data/gold_std/poses.txt'
+    print("Extracting Pose Information...", flush=True)    
     extractor = PoseDataExtractor(pose_path)
     pose_df = extractor.fetch_data()
     del extractor
@@ -81,6 +85,7 @@ if __name__ == '__main__':
 
     # Transform bbox coordinates to global coordinates
     print("Processing Pose", flush=True)
+    log_memory_usage()
     pose_processing = ProcessPose(
         pose=pose_df,
         depth_images=depth_images,
@@ -88,25 +93,58 @@ if __name__ == '__main__':
         img_size=img_size,
     )
     global_bboxes_data = pose_processing.get_global_coordinates()
+
+    # Garbage collection
+    del pose_df
     del pose_processing
+    del depth_images
     gc.collect()
     print("Pose Processed!", flush=True)
+    log_memory_usage()
 
-    for frame_index, global_bboxes in global_bboxes_data.items():
-        print(f"Frame {frame_index}:")
-        for bbox in global_bboxes:
-            print(bbox)
+    return global_bboxes_data
 
+@profile
+def plot_map(global_bboxes_data, eps, min_points, ply_path, preprocess_point_cloud):
     # Map the bounding box information to the global 3D map
     print("Generating 3D Map...")
+    log_memory_usage()
     mapper = Mapping(
         global_bboxes_data=global_bboxes_data,
-        eps=0.02,
-        min_points=10,
-        ply_filepath=r"src/common/data/gold_std/cloud.ply",
-        preprocess_point_cloud=False,
+        eps=eps,
+        min_points=min_points,
+        ply_filepath=ply_path,
+        preprocess_point_cloud=preprocess_point_cloud,
     )
     mapper.make_point_cloud()
+
+    # Garbage collection
     del mapper
     gc.collect()
     print("3D Map Generated!", flush=True)
+
+
+if __name__ == '__main__':
+    img_size = 640
+    batch_size = 2
+    conf_thresh = 0.5
+    iou_thresh = 0.65
+    eps = 0.02
+    min_points = 10
+    preprocess_point_cloud = False
+
+    db_path = r"src/common/data/gold_std/data.db"
+    pose_path = r"src/common/data/gold_std/poses.txt"
+    ply_path = r"src/common/data/gold_std/cloud.ply"
+
+    # Extract images
+    images, depth_images = extract_images(db_path)
+
+    # Detecting signs
+    predictions = detect_signs(images, img_size, batch_size, conf_thresh, iou_thresh)
+
+    # Map detected objects
+    global_bboxes_data = map_detected_objects(pose_path, depth_images, predictions)
+
+    # Plot 3D map
+    plot_map(global_bboxes_data, eps, min_points, ply_path, preprocess_point_cloud)
