@@ -103,15 +103,21 @@ class ObjectDetector(nn.Module):
         Args:
             data_loader: PyTorch DataLoader containing batches of image tensors.
         """
+        predictions = []
         self.model.eval()
         loop = tqdm(enumerate(dataloader), total=len(dataloader))
         with torch.no_grad():
             for idx, (data) in loop:
+                # Make prediction and save processed images
                 data, preds = self._inference(data)
                 self._processed_image(data, preds)
+                predictions.append(preds)
 
                 # Update progress bar
                 loop.set_description(f"Image [{idx + 1}/{len(dataloader)}]")
+                break
+
+        return predictions
 
     def _inference(self, data):
         data = data.half().to(self.device)
