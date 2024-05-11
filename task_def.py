@@ -1,4 +1,5 @@
 import os
+import gc
 import sys
 
 from torch.utils.data import DataLoader
@@ -6,8 +7,10 @@ from torch.utils.data import DataLoader
 from src.detector.database_query import ImageExtractor
 from src.detector.dataset import ImageDataset
 from src.detector.detector import ObjectDetector
-from src.mapper.database_query import PoseDataExtractor
+
 from src.mapper.mapping import Mapping
+from src.mapper.pose_processor import ProcessPose
+from src.mapper.database_query import PoseDataExtractor
 
 sys.path.append(
     os.path.join(
@@ -29,8 +32,10 @@ if __name__ == '__main__':
 
     print("Extracting frames...", flush=True)
     db_path = r"src/common/data/gold_std/data.db"
-    extractor = ImageExtractor(db_path)
-    data = extractor.fetch_data()
+    extractor = ImageExtractor(db_path, img_size)
+    images, depth_images = extractor.fetch_data()
+    del extractor
+    gc.collect()
     print("Frames extracted.\n", flush=True)
 
     # ############### #
@@ -38,7 +43,7 @@ if __name__ == '__main__':
     # ############### #
 
     # Create dataset
-    dataset = ImageDataset(data, img_size=img_size)
+    dataset = ImageDataset(images, img_size=img_size)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
     # Instance model
@@ -49,11 +54,15 @@ if __name__ == '__main__':
         img_size=img_size,
         batch_size=batch_size,
         view_img=False,
-        save_img="src/common/data/gold_std/processed_img"
+        save_img="src/common/data/gold_std/processed_img",
     )
 
     # Run inference
     predictions = model(dataloader)
+    del dataset
+    del dataloader
+    del model
+    gc.collect()
     print(predictions)
     print("Inference Complete!\n", flush=True)
 
@@ -61,21 +70,43 @@ if __name__ == '__main__':
     # Map Detected Objects to Map #
     # ########################### #
 
-    print("Extracting Pose Information...", flush=True)
-
     # Get the node information from the table
+    print("Extracting Pose Information...", flush=True)
     pose_path = 'src/common/data/gold_std/poses.txt'
     extractor = PoseDataExtractor(pose_path)
-    df = extractor.fetch_data()
+    pose_df = extractor.fetch_data()
+    del extractor
+    gc.collect()
     print("Pose Information Extracted!\n", flush=True)
 
-    # Map the bounding box information to the global 3D map
-    # mapper = Mapping(
-    #     eps=0.04,
-    #     min_points=10,
-    #     ply_filepath=r"src/common/data/gold_std/cloud.ply",
-    #     preprocess_point_cloud=False,
-    # )
-    # mapper.make_point_cloud()
+    # Transform bbox coordinates to global coordinates
+    print("Processing Pose", flush=True)
+    pose_processing = ProcessPose(
+        pose=pose_df,
+        depth_images=depth_images,
+        bbox_coordinates=predictions,
+        img_size=img_size,
+    )
+    global_bboxes_data = pose_processing.get_global_coordinates()
+    del pose_processing
+    gc.collect()
+    print("Pose Processed!", flush=True)
 
-    # Create the 3D map
+    for frame_index, global_bboxes in global_bboxes_data.items():
+        print(f"Frame {frame_index}:")
+        for bbox in global_bboxes:
+            print(bbox)
+
+    # Map the bounding box information to the global 3D map
+    print("Generating 3D Map...")
+    mapper = Mapping(
+        global_bboxes_data=global_bboxes_data,
+        eps=0.02,
+        min_points=10,
+        ply_filepath=r"src/common/data/gold_std/cloud.ply",
+        preprocess_point_cloud=False,
+    )
+    mapper.make_point_cloud()
+    del mapper
+    gc.collect()
+    print("3D Map Generated!", flush=True)

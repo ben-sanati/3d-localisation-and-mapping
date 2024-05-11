@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 class Mapping:
     def __init__(
         self,
+        global_bboxes_data,
         eps=0.04,
         min_points=10,
         ply_filepath=r"../common/data/gold_std/cloud.ply",
@@ -19,7 +20,10 @@ class Mapping:
         self.eps = eps
         self.min_points = min_points
         self.ply_filepath = ply_filepath
+        self.global_bboxes_data = global_bboxes_data
         self.preprocess_point_cloud = preprocess_point_cloud
+
+        self.lines = [[0, 1], [1, 2], [2, 3], [3, 0]]
 
         # Mesh data
         self.radius = radius
@@ -36,7 +40,7 @@ class Mapping:
             # DBSCAN clustering
             self._clustering()
 
-        # visualise mesh
+        # Visualise mesh
         self._visualiser(self.pcd)
 
     def make_mesh(self, algo_method="Poisson"):
@@ -126,6 +130,16 @@ class Mapping:
 
         # Make mesh
         self.vis.add_geometry(data)
+
+        # Add bounding boxes to the visualizer
+        for bbox in self.global_bboxes_data:
+            print(f"BBox: {bbox}", flush=True)
+            # points = [bbox[corner] for corner in range(4)]
+            # line_set = o3d.geometry.LineSet(
+            #     points=o3d.utility.Vector3dVector(points),
+            #     lines=o3d.utility.Vector2iVector(self.lines)
+            # )
+            # self.vis.add_geometry(line_set)
 
         # Run the visualizer
         self.vis.run()

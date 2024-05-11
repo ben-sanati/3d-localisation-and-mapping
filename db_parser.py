@@ -21,15 +21,15 @@ if __name__ == "__main__":
         cursor.execute(f"SELECT * FROM {table}")
         print(f"Table {table}: {[description[0] for description in cursor.description]}", flush=True)
 
-    # get camera intrinsics
-    cursor.execute("SELECT calibration FROM Data WHERE calibration IS NOT NULL")
-    rows = [elem[0] for elem in cursor.fetchall()]
-    formats = ['I', 'H', 'f', 'd']
-    for row in rows:
-        try:
-            # decode
-            calibration_data = struct.unpack('8I', row[:struct.calcsize('8I')])
-            print(f"Calibration Data: {calibration_data}")
-        except struct.error as e:
-            print("Failed to unpack calibration data:", e)
-        break
+    # # get camera intrinsics
+    # cursor.execute("SELECT calibration FROM Data WHERE calibration IS NOT NULL")
+    # rows = [elem[0] for elem in cursor.fetchall()]
+    # formats = ['I', 'H', 'f', 'd']
+    # for row in rows:
+    #     try:
+    #         # decode
+    #         calibration_data = struct.unpack('8I', row[:struct.calcsize('8I')])
+    #         print(f"Calibration Data: {calibration_data}")
+    #     except struct.error as e:
+    #         print("Failed to unpack calibration data:", e)
+    #     break

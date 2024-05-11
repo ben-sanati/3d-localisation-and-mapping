@@ -8,6 +8,13 @@ class PoseDataExtractor:
         self.pose_path = pose_path
         self.pcd = o3d.geometry.PointCloud()
 
+    def fetch_data(self):
+        df = pd.read_csv(self.pose_path, sep=' ', skiprows=1, header=None)
+        df.columns = ['timestamp', 'tx', 'ty', 'tz', 'qx', 'qy', 'qz', 'qw']
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
+        return df
+
+    def plot_pose(self, df):
         # Create a visualizer object
         self.vis = o3d.visualization.Visualizer()
         self.vis.create_window()
@@ -16,13 +23,7 @@ class PoseDataExtractor:
         opt = self.vis.get_render_option()
         opt.point_size = 2.0  # Set the point size to smaller values
 
-    def fetch_data(self):
-        df = pd.read_csv(self.pose_path, sep=' ', skiprows=1, header=None)
-        df.columns = ['timestamp', 'tx', 'ty', 'tz', 'qx', 'qy', 'qz', 'qw']
-        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
-        return df
-
-    def plot_pose(self, df):
+        # Get pose points and camera directions
         self.pcd.points = o3d.utility.Vector3dVector(df[['tx', 'ty', 'tz']].values)
         colours = np.random.uniform(0, 1, size=(len(df), 3))
         self.pcd.colors = o3d.utility.Vector3dVector(colours)
