@@ -47,6 +47,7 @@ if __name__ == '__main__':
         conf_thresh=conf_thresh,
         iou_thresh=iou_thresh,
         img_size=img_size,
+        batch_size=batch_size,
         view_img=False,
         save_img="src/common/data/gold_std/processed_img"
     )
@@ -54,26 +55,27 @@ if __name__ == '__main__':
     # Run inference
     predictions = model(dataloader)
     print(predictions)
-    print("Inference Complete!", flush=True)
+    print("Inference Complete!\n", flush=True)
 
     # ########################### #
     # Map Detected Objects to Map #
     # ########################### #
 
-    # Get the node information from the table
     print("Extracting Pose Information...", flush=True)
+
+    # Get the node information from the table
     pose_path = 'src/common/data/gold_std/poses.txt'
     extractor = PoseDataExtractor(pose_path)
     df = extractor.fetch_data()
-    print("Pose Information Extracted!", flush=True)
+    print("Pose Information Extracted!\n", flush=True)
 
     # Map the bounding box information to the global 3D map
-    mapper = Mapping(
-        eps=0.04,
-        min_points=10,
-        ply_filepath=r"src/common/data/gold_std/cloud.ply",
-        preprocess_point_cloud=False,
-    )
-    mapper.make_point_cloud()
+    # mapper = Mapping(
+    #     eps=0.04,
+    #     min_points=10,
+    #     ply_filepath=r"src/common/data/gold_std/cloud.ply",
+    #     preprocess_point_cloud=False,
+    # )
+    # mapper.make_point_cloud()
 
     # Create the 3D map

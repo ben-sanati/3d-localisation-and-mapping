@@ -33,6 +33,7 @@ class ObjectDetector(nn.Module):
         conf_thresh,
         iou_thresh,
         img_size,
+        batch_size,
         view_img,
         save_img,
         weights=r"src/common/finetuned_models/best.pt"
@@ -66,6 +67,7 @@ class ObjectDetector(nn.Module):
         self.iou_thresh = iou_thresh
         self.view_img = view_img
         self.img_size = img_size
+        self.batch_size = batch_size
         self.save_img = save_img
         self.idx = 0
 
@@ -103,7 +105,7 @@ class ObjectDetector(nn.Module):
         Args:
             data_loader: PyTorch DataLoader containing batches of image tensors.
         """
-        predictions = []
+        predictions = {}
         self.model.eval()
         loop = tqdm(enumerate(dataloader), total=len(dataloader))
         with torch.no_grad():
@@ -111,11 +113,16 @@ class ObjectDetector(nn.Module):
                 # Make prediction and save processed images
                 data, preds = self._inference(data)
                 self._processed_image(data, preds)
-                predictions.append(preds)
+
+                # Add to dictionary
+                preds = [tensor.cpu().tolist() for tensor in preds]
+                for img_idx, (pred) in enumerate(preds):
+                    predictions[(idx * self.batch_size) + img_idx] = pred
 
                 # Update progress bar
                 loop.set_description(f"Image [{idx + 1}/{len(dataloader)}]")
-                break
+                if idx == 1:
+                    break
 
         return predictions
 
