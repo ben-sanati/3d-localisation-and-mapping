@@ -15,6 +15,7 @@ from src.mapper.mapping import Mapping
 from src.mapper.pose_processor import ProcessPose
 from src.mapper.database_query import PoseDataExtractor
 
+
 sys.path.append(
     os.path.join(
         os.path.dirname(__file__),
@@ -24,23 +25,23 @@ sys.path.append(
 )
 
 
-def extract_images(db_path):
+def extract_images(db_path, img_size, batch_size, save_dir, image_dir, depth_image_dir):
     print("Extracting frames...", flush=True)
-    extractor = ImageExtractor(db_path, img_size)
-    images, depth_images = extractor.fetch_data()
+    extractor = ImageExtractor(db_path, img_size, save_dir)
+    extractor.fetch_data()
+
+    # Create dataset
+    dataset = ImageDataset(image_dir=image_dir, depth_image_dir=depth_image_dir, img_size=img_size)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
     # Garbage collection
     del extractor
     gc.collect()
     print("Frames extracted.\n", flush=True)
 
-    return images, depth_images
+    return dataset, dataloader
 
-def detect_signs(images, img_size, batch_size, conf_thresh, iou_thresh):
-    # Create dataset
-    dataset = ImageDataset(images, img_size=img_size)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
-
+def detect_signs(dataloader, img_size, batch_size, conf_thresh, iou_thresh):
     # Instance model
     print("Detecting Signs...", flush=True)
     model = ObjectDetector(
@@ -57,16 +58,13 @@ def detect_signs(images, img_size, batch_size, conf_thresh, iou_thresh):
 
     # Perform garbage collection
     torch.cuda.empty_cache()
-    del images
-    del dataset
-    del dataloader
     del model
     gc.collect()
     print("Inference Complete!\n", flush=True)
 
     return predictions
 
-def map_detected_objects(pose_path, depth_images, predictions):
+def map_detected_objects(pose_path, dataset, predictions, img_size):
     # Get the node information from the table
     print("Extracting Pose Information...", flush=True)    
     extractor = PoseDataExtractor(pose_path)
@@ -79,7 +77,7 @@ def map_detected_objects(pose_path, depth_images, predictions):
     print("Processing Pose", flush=True)
     pose_processing = ProcessPose(
         pose=pose_df,
-        depth_images=depth_images,
+        dataset=dataset,
         bbox_coordinates=predictions,
         img_size=img_size,
     )
@@ -90,13 +88,11 @@ def map_detected_objects(pose_path, depth_images, predictions):
             print(f"{frame_index}: {bbox}")
 
     # Garbage collection
-    del pose_df
     del pose_processing
-    del depth_images
     gc.collect()
     print("Pose Processed!", flush=True)
 
-    return global_bboxes_data
+    return global_bboxes_data, pose_df
 
 def plot_map(global_bboxes_data, eps, min_points, ply_path, preprocess_point_cloud):
     # Map the bounding box information to the global 3D map
@@ -117,39 +113,46 @@ def plot_map(global_bboxes_data, eps, min_points, ply_path, preprocess_point_clo
 
 
 if __name__ == '__main__':
+    eps = 0.02
     img_size = 640
     batch_size = 2
+    min_points = 10
     conf_thresh = 0.5
     iou_thresh = 0.65
-    eps = 0.02
-    min_points = 10
     preprocess_point_cloud = False
 
     db_path = r"src/common/data/gold_std/data.db"
-    pose_path = r"src/common/data/gold_std/poses.txt"
     ply_path = r"src/common/data/gold_std/cloud.ply"
+    pose_path = r"src/common/data/gold_std/poses.txt"
+    pickle_path = r"src/common/data/gold_std/variables.pkl"
+
+    save_dir = r"src/common/data/gold_std/raw_img"
+    image_dir = f"{save_dir}/images"
+    depth_image_dir = f"{save_dir}/depth_images"
+
+    data_to_save = {}
 
     # Extract images
-    images, depth_images = extract_images(db_path)
+    dataset, dataloader = extract_images(db_path, img_size, batch_size, save_dir, image_dir, depth_image_dir)
+    data_to_save["dataset"] = dataset
+    data_to_save["dataloader"] = dataloader
 
     # Detecting signs
-    predictions = detect_signs(images, img_size, batch_size, conf_thresh, iou_thresh)
+    predictions = detect_signs(dataloader, img_size, batch_size, conf_thresh, iou_thresh)
+    data_to_save["predictions"] = predictions
+    del dataloader
+    gc.collect()
 
     # Map detected objects
-    global_bboxes_data = map_detected_objects(pose_path, depth_images, predictions)
+    global_bboxes_data, pose_df = map_detected_objects(pose_path, dataset, predictions, img_size)
 
-    # Save as pickle file and load later to use in another script
-    data_to_save = {
-        "global_bboxes_data": global_bboxes_data,
-        "eps": eps,
-        "min_points": min_points,
-        "ply_path": ply_path,
-        "preprocess_point_cloud": preprocess_point_cloud,
-    }
-    with open("src/common/data/gold_std/variables.pkl", "wb") as file:
-        pickle.dump(data_to_save, file)
+    # # Save as pickle file and load later to use in another script
+    data_to_save["global_bboxes_data"] = global_bboxes_data
+    data_to_save["pose_df"] = pose_df
 
-    print("Variables stored to pickle file.", flush=True)
-
-    # Plot 3D map
-    # plot_map(global_bboxes_data, eps, min_points, ply_path, preprocess_point_cloud)
+    try:
+        with open(pickle_path, "wb") as file:
+            pickle.dump(data_to_save, file)
+            print("Variables stored to pickle file.", flush=True)
+    except Exception as e:
+        print(f"Failed to write to file: {e}")

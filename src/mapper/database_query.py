@@ -17,7 +17,7 @@ class PoseDataExtractor:
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
         return df
 
-    def plot_pose(self, df, global_bboxes_data):
+    def plot_pose(self, df):
         # Create a visualizer object
         self.vis = o3d.visualization.Visualizer()
         self.vis.create_window()
@@ -46,16 +46,6 @@ class PoseDataExtractor:
         line_set.lines = o3d.utility.Vector2iVector(lines)
         line_set.colors = o3d.utility.Vector3dVector(line_colors)
 
-        for item, bboxes in global_bboxes_data.items():
-            for bbox in bboxes:
-                bbox_points = np.array(bbox)  # Assuming bbox is already a numpy array or list of numpy arrays
-                bbox_lines = [[0, 1], [1, 2], [2, 3], [3, 0]]  # Assuming bbox is a rectangle
-                bbox_line_set = o3d.geometry.LineSet(
-                    points=o3d.utility.Vector3dVector(bbox_points),
-                    lines=o3d.utility.Vector2iVector(bbox_lines)
-                )
-                self.vis.add_geometry(bbox_line_set)
-
         o3d.visualization.draw_geometries([self.pcd, line_set])
         self.vis.destroy_window()
 
@@ -69,17 +59,10 @@ class PoseDataExtractor:
         ])
 
 
-if __name__ == '__main__':
-    with open(r"../common/data/gold_std/variables.pkl", "rb") as file:
-        variables = pickle.load(file)
+if __name__ == "__main__":
+    pose_path = "../common/data/gold_std/poses.txt"
 
-    global_bboxes_data = variables["global_bboxes_data"]
-    eps = variables["eps"]
-    min_points = variables["min_points"]
-
-    pose_path = '../common/data/gold_std/poses.txt'
     extractor = PoseDataExtractor(pose_path)
     df = extractor.fetch_data()
     print(f"Pose Data:\n{df}")
-    print(f"BBoxes: {global_bboxes_data}")
-    extractor.plot_pose(df, global_bboxes_data)
+    extractor.plot_pose(df)

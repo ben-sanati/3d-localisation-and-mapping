@@ -109,7 +109,7 @@ class ObjectDetector(nn.Module):
         self.model.eval()
         loop = tqdm(enumerate(dataloader), total=len(dataloader))
         with torch.no_grad():
-            for idx, (data) in loop:
+            for idx, (data, _) in loop:
                 # Make prediction and save processed images
                 data, preds = self._inference(data)
                 self._processed_image(data, preds)

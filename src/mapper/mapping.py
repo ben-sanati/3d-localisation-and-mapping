@@ -13,10 +13,12 @@ class Mapping:
     def __init__(
         self,
         global_bboxes_data=None,
+        pose=None,
         eps=0.04,
         min_points=10,
         ply_filepath=r"../common/data/gold_std/cloud.ply",
         preprocess_point_cloud=True,
+        overlay_pose=False,
         radius=0.1,
         max_nn=30,
         depth=9,
@@ -24,8 +26,10 @@ class Mapping:
         radii = [0.005, 0.01, 0.02, 0.04]
     ):
         self.eps = eps
+        self.pose = pose
         self.min_points = min_points
         self.ply_filepath = ply_filepath
+        self.overlay_pose = overlay_pose
         self.global_bboxes_data = global_bboxes_data
         self.preprocess_point_cloud = preprocess_point_cloud
 
@@ -131,14 +135,14 @@ class Mapping:
 
     def _visualiser(self, data):
         # Create a visualizer object
-        self.vis = o3d.visualization.Visualizer()
-        self.vis.create_window()
+        vis = o3d.visualization.Visualizer()
+        vis.create_window()
 
-        # Make mesh
-        self.vis.add_geometry(data)
+        # Make mesh/point_cloud
+        vis.add_geometry(data)
 
         # Add bounding boxes to the visualizer
-        for frame_index, bbox_list in global_bboxes_data.items():
+        for frame_index, bbox_list in self.global_bboxes_data.items():
             for bbox in bbox_list:
                 print(f"BBox: {bbox}", flush=True)
                 points = [bbox[corner] for corner in range(4)]
@@ -147,15 +151,20 @@ class Mapping:
                     lines=o3d.utility.Vector2iVector(self.lines)
                 )
                 print(f"Line Set: {line_set}")
-                render_option = self.vis.get_render_option()
+                render_option = vis.get_render_option()
                 render_option.line_width = 10.0
-                self.vis.add_geometry(line_set)
 
-        o3d.visualization.draw_geometries([data, line_set])
+        if self.overlay_pose:
+            pose_point_cloud = o3d.geometry.PointCloud()
+            pose_point_cloud.points = o3d.utility.Vector3dVector(self.pose[['tx', 'ty', 'tz']].values)
+            vis.add_geometry(pose_point_cloud)
+        else:
+            # o3d.visualization.draw_geometries([data, line_set])
+            vis.add_geometry(line_set)
 
         # Run the visualizer
-        self.vis.run()
-        self.vis.destroy_window()
+        vis.run()
+        vis.destroy_window()
 
 
 if __name__ == '__main__':
@@ -165,16 +174,19 @@ if __name__ == '__main__':
     global_bboxes_data = variables["global_bboxes_data"]
     eps = variables["eps"]
     min_points = variables["min_points"]
+    pose_df = variables["pose_df"]
 
     mapper = Mapping(
         global_bboxes_data=global_bboxes_data,
+        pose=pose_df,
         eps=eps,
         min_points=min_points,
         ply_filepath=r"../common/data/gold_std/cloud.ply",
-        preprocess_point_cloud=False,
+        preprocess_point_cloud=True,
+        overlay_pose=True,
     )
     log_memory_usage()
 
     # Either make a point cloud or a mesh
-    mapper.make_point_cloud()
-    # mapper.make_mesh()
+    # mapper.make_point_cloud()
+    mapper.make_mesh()
