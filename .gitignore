@@ -5,6 +5,7 @@
 *.jpg
 *.out
 *.pt
+src/common/data
 
 # Models
 src/detector/yolov7
