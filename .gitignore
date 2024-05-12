@@ -2,6 +2,7 @@
 *.db
 *.ply
 *.png
+*.jpg
 *.out
 *.pt
 
