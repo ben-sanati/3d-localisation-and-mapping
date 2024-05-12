@@ -92,7 +92,7 @@ class ProcessPose:
             numpy.ndarray: 3D coordinates [X, Y, Z] relative to the camera frame.
         """
         # Extract the depth value at (x, y)
-        Z = depth_image[-1, x, y]
+        Z = depth_image[0, x, y]
 
         # Convert (x, y) coordinates into 3D space based on camera intrinsic parameters
         X = (x - self.cx) * Z / self.fx

@@ -24,7 +24,6 @@ class ImageDataset(Dataset):
 
         image_tensor = self.load_image(image_path, self.transform)
         depth_image_tensor = self.load_image(depth_image_path, self.transform)
-        print(f"Image: {image_tensor.size()}\nDepth: {depth_image_tensor.size()}")
 
         return image_tensor, depth_image_tensor
 

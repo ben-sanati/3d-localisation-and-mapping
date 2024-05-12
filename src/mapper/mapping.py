@@ -1,12 +1,12 @@
+import os
+import sys
 import pickle
 import psutil
 import numpy as np
 import open3d as o3d
 import matplotlib.pyplot as plt
 
-
-def log_memory_usage():
-    print(f"\tCurrent memory usage: {psutil.Process().memory_info().rss / 1024 ** 2:.2f} MB", flush=True)
+sys.path.insert(0, r'../..')
 
 
 class Mapping:
@@ -158,6 +158,7 @@ class Mapping:
             pose_point_cloud = o3d.geometry.PointCloud()
             pose_point_cloud.points = o3d.utility.Vector3dVector(self.pose[['tx', 'ty', 'tz']].values)
             vis.add_geometry(pose_point_cloud)
+            vis.add_geometry(line_set)
         else:
             # o3d.visualization.draw_geometries([data, line_set])
             vis.add_geometry(line_set)
@@ -168,12 +169,13 @@ class Mapping:
 
 
 if __name__ == '__main__':
+    eps = 0.02
+    min_points = 10
+
     with open(r"../common/data/gold_std/variables.pkl", "rb") as file:
         variables = pickle.load(file)
 
     global_bboxes_data = variables["global_bboxes_data"]
-    eps = variables["eps"]
-    min_points = variables["min_points"]
     pose_df = variables["pose_df"]
 
     mapper = Mapping(
@@ -182,10 +184,9 @@ if __name__ == '__main__':
         eps=eps,
         min_points=min_points,
         ply_filepath=r"../common/data/gold_std/cloud.ply",
-        preprocess_point_cloud=True,
+        preprocess_point_cloud=False,
         overlay_pose=True,
     )
-    log_memory_usage()
 
     # Either make a point cloud or a mesh
     # mapper.make_point_cloud()
