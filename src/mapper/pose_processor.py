@@ -52,8 +52,14 @@ class ProcessPose:
         for frame_index, bboxes in self.bbox_coordinates.items():
             # Extract the corresponding pose for the current frame
             frame_pose = self.pose.loc[frame_index, ['tx', 'ty', 'tz', 'qx', 'qy', 'qz', 'qw']].values
-            depth_image = self.dataset[frame_index][1]
-            print(f"Depth Image: {depth_image.size()}", flush=True)
+
+            try:
+                depth_image_path = f"src/common/data/gold_std/rtabmap_extract/depth/{frame_index+1}.png"
+                depth_image = cv2.imread(depth_image_path, cv2.IMREAD_UNCHANGED)  # Use cv2.IMREAD_UNCHANGED or -1 to load raw data
+                depth_image = cv2.resize(depth_image, (self.img_size, self.img_size), interpolation=cv2.INTER_LINEAR)
+                print(f"Depth Image: {depth_image.size()}", flush=True)
+            except Exception:
+                continue
 
             # Store the global bounding boxes for the current frame
             frame_global_bboxes = []
@@ -92,7 +98,7 @@ class ProcessPose:
         Returns:
             numpy.ndarray: 3D coordinates [X, Y, Z] relative to the camera frame.
         """
-        # Extract the depth value at (x, y)
+        # Extract the depth value at (x, y) (rtabmap uses mm by default)
         Z = depth_image[1, x, y]
 
         # Convert (x, y) coordinates into 3D space based on camera intrinsic parameters
@@ -126,18 +132,34 @@ class ProcessPose:
         for frame_index, bboxes in self.bbox_coordinates.items():
             # Define image paths
             rgb_image_path = f"{rgb_base_path}/image_{frame_index}.jpg"
-            depth_image_path = f"{depth_base_path}/depth_{frame_index}.png"
+            depth_image_path = f"{depth_base_path}/{frame_index+1}.png"
 
             # Load RGB image using OpenCV
-            rgb_image_cv = cv2.imread(rgb_image_path)
-            rgb_image_cv = cv2.cvtColor(rgb_image_cv, cv2.COLOR_BGR2RGB)
+            try:
+                rgb_image_cv = cv2.imread(rgb_image_path)
+                rgb_image_cv = cv2.cvtColor(rgb_image_cv, cv2.COLOR_BGR2RGB)
 
-            # Load depth image using OpenCV
-            depth_image_cv = cv2.imread(depth_image_path, cv2.IMREAD_UNCHANGED)  # Use cv2.IMREAD_UNCHANGED or -1 to load raw data
-            cv2.imshow("Depth Image", depth_image_cv[:, :, 3:4])
+                # Load depth image using OpenCV
+                depth_image_cv = cv2.imread(depth_image_path, cv2.IMREAD_UNCHANGED)  # Use cv2.IMREAD_UNCHANGED or -1 to load raw data
+                depth_image_cv = cv2.resize(depth_image_cv, (self.img_size, self.img_size), interpolation=cv2.INTER_LINEAR)
+                print(f"Depth ({depth_image_cv.shape}) : [{depth_image_cv.min()} - {depth_image_cv.max()}]")
+
+                # Normalise depth_image for plotting
+                depth_image_cv = cv2.normalize(depth_image_cv, None, 0, 255, cv2.NORM_MINMAX)
+                depth_image_cv = np.uint8(depth_image_cv)
+
+                # Display the normalized depth channel
+                cv2.imshow("Depth Image", depth_image_cv)
+            except Exception:
+                print(f"No {frame_index+1} image")
+                continue
+
+            cv2.imshow("Depth Image", depth_image_cv)
             cv2.waitKey(0)
             cv2.destroyAllWindows()
-            print(f"RGB: {rgb_image_cv.shape}\nDepth: {depth_image_cv.shape}")
+
+            for bbox in bboxes:
+                print(bbox)
 
             # # Convert images to Open3D format
             # rgb_image_o3d = o3d.geometry.Image(rgb_image_cv)
@@ -176,9 +198,9 @@ if __name__ == '__main__':
     os.chdir(r'../..')
 
     img_size = 640
-    save_dir = r"src/common/data/gold_std/raw_img"
-    image_dir = f"{save_dir}/images"
-    depth_image_dir = f"{save_dir}/depth_images"
+    save_dir = r"src/common/data/gold_std/rtabmap_extract"
+    image_dir = f"src/common/data/gold_std/raw_img/images"
+    depth_image_dir = f"{save_dir}/depth"
     print(f"{os.getcwd()}", flush=True)
 
     with open(r"src/common/data/gold_std/variables.pkl", "rb") as file:
