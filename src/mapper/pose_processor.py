@@ -1,5 +1,6 @@
 import os
 import sys
+import cv2
 import pickle
 import numpy as np
 import pandas as pd
@@ -92,7 +93,7 @@ class ProcessPose:
             numpy.ndarray: 3D coordinates [X, Y, Z] relative to the camera frame.
         """
         # Extract the depth value at (x, y)
-        Z = depth_image[0, x, y]
+        Z = depth_image[1, x, y]
 
         # Convert (x, y) coordinates into 3D space based on camera intrinsic parameters
         X = (x - self.cx) * Z / self.fx
@@ -121,38 +122,54 @@ class ProcessPose:
         global_point = rotation.apply(local_point) + translation
         return global_point
 
-    def view_3d_bbox(self):
+    def view_3d_bbox(self, rgb_base_path, depth_base_path):
         for frame_index, bboxes in self.bbox_coordinates.items():
-            rgb_tensor, depth_tensor = self.dataset[frame_index]
-            print(f"RGB: {rgb_tensor.size()}\nDepth: {depth_tensor.size()}")
-            rgb_numpy = rgb_tensor.numpy().transpose(1, 2, 0)
-            depth_numpy = depth_tensor.numpy().transpose(1, 2, 0)
-            if np.max(rgb_numpy) <= 1.0:
-                rgb_numpy = (rgb_numpy * 255).astype(np.uint8)
-            else:
-                rgb_numpy = rgb_numpy.astype(np.uint8)
+            # Define image paths
+            rgb_image_path = f"{rgb_base_path}/image_{frame_index}.jpg"
+            depth_image_path = f"{depth_base_path}/depth_{frame_index}.png"
 
-            # Create Open3D Image objects
-            rgb_image = o3d.geometry.Image(rgb_numpy.copy())
-            depth_image = o3d.geometry.Image(depth_numpy.astype(np.uint16).copy())
+            # Load RGB image using OpenCV
+            rgb_image_cv = cv2.imread(rgb_image_path)
+            rgb_image_cv = cv2.cvtColor(rgb_image_cv, cv2.COLOR_BGR2RGB)
 
-            # Create an RGBD image
-            rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(
-                rgb_image,
-                depth_image,
-                depth_scale=1000.0,  # Adjust according to your depth unit
-                depth_trunc=10000.0,  # Adjust truncation depth according to your needs
-                convert_rgb_to_intensity=False
-            )
+            # Load depth image using OpenCV
+            depth_image_cv = cv2.imread(depth_image_path, cv2.IMREAD_UNCHANGED)  # Use cv2.IMREAD_UNCHANGED or -1 to load raw data
+            cv2.imshow("Depth Image", depth_image_cv[:, :, 3:4])
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+            print(f"RGB: {rgb_image_cv.shape}\nDepth: {depth_image_cv.shape}")
 
-            # Create point cloud
-            point_cloud = o3d.geometry.PointCloud.create_from_rgbd_image(
-                rgbd_image,
-                o3d.camera.PinholeCameraIntrinsic(width=self.img_size, height=self.img_size, fx=self.fx, fy=self.fy, cx=self.cx, cy=self.cy)
-            )
+            # # Convert images to Open3D format
+            # rgb_image_o3d = o3d.geometry.Image(rgb_image_cv)
+            # depth_image_o3d = o3d.geometry.Image(depth_image_cv)
 
-            # Visualize the point cloud
-            o3d.visualization.draw_geometries([point_cloud])
+            # # Create an RGBD image from RGB and depth images
+            # rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(
+            #     rgb_image_o3d,
+            #     depth_image_o3d,
+            #     depth_scale=1000.0,  # Adjust this according to the depth unit of your depth image
+            #     depth_trunc=3.0,     # Maximum depth value to be used
+            #     convert_rgb_to_intensity=False
+            # )
+
+            # # Define camera intrinsics, adjust these parameters to match the actual camera specs
+            # camera_intrinsics = o3d.camera.PinholeCameraIntrinsic(
+            #     width=self.img_size,  # width of the depth image
+            #     height=self.img_size,  # height of the depth image
+            #     fx=self.fx,  # focal length x
+            #     fy=self.fy,  # focal length y
+            #     cx=self.cx,  # principal point x
+            #     cy=self.cy   # principal point y
+            # )
+
+            # # Generate point cloud from the RGBD image using the intrinsic parameters
+            # point_cloud = o3d.geometry.PointCloud.create_from_rgbd_image(
+            #     rgbd_image,
+            #     camera_intrinsics
+            # )
+
+            # # Visualize the point cloud
+            # o3d.visualization.draw_geometries([point_cloud])
 
 
 if __name__ == '__main__':
@@ -178,5 +195,5 @@ if __name__ == '__main__':
         bbox_coordinates=predictions,
         img_size=img_size,
     )
-    pose_processing.view_3d_bbox()
+    pose_processing.view_3d_bbox(image_dir, depth_image_dir)
     # global_bboxes_data = pose_processing.get_global_coordinates()
