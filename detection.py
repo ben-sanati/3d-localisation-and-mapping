@@ -26,16 +26,16 @@ sys.path.append(
 
 
 def extract_images(db_path, img_size, batch_size, save_dir, image_dir, depth_image_dir):
-    print("Extracting frames...", flush=True)
-    extractor = ImageExtractor(db_path, img_size, save_dir)
-    extractor.fetch_data()
+    # print("Extracting frames...", flush=True)
+    # extractor = ImageExtractor(db_path, img_size, save_dir)
+    # extractor.fetch_data()
 
     # Create dataset
     dataset = ImageDataset(image_dir=image_dir, depth_image_dir=depth_image_dir, img_size=img_size)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
     # Garbage collection
-    del extractor
+    # del extractor
     gc.collect()
     print("Frames extracted.\n", flush=True)
 
@@ -126,9 +126,9 @@ if __name__ == '__main__':
     pose_path = r"src/common/data/gold_std/poses.txt"
     pickle_path = r"src/common/data/gold_std/variables.pkl"
 
-    save_dir = r"src/common/data/gold_std/raw_img"
-    image_dir = f"{save_dir}/images"
-    depth_image_dir = f"{save_dir}/depth_images"
+    save_dir = r"src/common/data/gold_std/rtabmap_extract"
+    image_dir = f"{save_dir}/rgb"
+    depth_image_dir = f"{save_dir}/depth"
 
     data_to_save = {}
 

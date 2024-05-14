@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import open3d as o3d
 from scipy.spatial.transform import Rotation as R
+from torchvision.transforms.functional import to_pil_image
 
 sys.path.insert(0, r'../..')
 
@@ -128,35 +129,35 @@ class ProcessPose:
         global_point = rotation.apply(local_point) + translation
         return global_point
 
-    def view_3d_bbox(self, rgb_base_path, depth_base_path):
+    def view_3d_bbox(self, dataset):
         for frame_index, bboxes in self.bbox_coordinates.items():
-            # Define image paths
-            rgb_image_path = f"{rgb_base_path}/image_{frame_index}.jpg"
-            depth_image_path = f"{depth_base_path}/{frame_index+1}.png"
-
-            # Load RGB image using OpenCV
             try:
-                rgb_image_cv = cv2.imread(rgb_image_path)
-                rgb_image_cv = cv2.cvtColor(rgb_image_cv, cv2.COLOR_BGR2RGB)
+                # Fetch images from the dataset
+                rgb_tensor, depth_tensor = dataset[frame_index]
 
-                # Load depth image using OpenCV
-                depth_image_cv = cv2.imread(depth_image_path, cv2.IMREAD_UNCHANGED)  # Use cv2.IMREAD_UNCHANGED or -1 to load raw data
-                depth_image_cv = cv2.resize(depth_image_cv, (self.img_size, self.img_size), interpolation=cv2.INTER_LINEAR)
+                # Convert tensors to PIL Images for display (assuming they're already in the correct size)
+                rgb_image_pil = to_pil_image(rgb_tensor)
+                depth_image_pil = to_pil_image(depth_tensor)
+
+                # Convert PIL Images to OpenCV format for display
+                rgb_image_cv = cv2.cvtColor(np.array(rgb_image_pil), cv2.COLOR_RGB2BGR)
+                depth_image_cv = np.array(depth_image_pil)
+
+                # Print depth image stats
                 print(f"Depth ({depth_image_cv.shape}) : [{depth_image_cv.min()} - {depth_image_cv.max()}]")
 
-                # Normalise depth_image for plotting
+                # Normalize depth image for better visualization
                 depth_image_cv = cv2.normalize(depth_image_cv, None, 0, 255, cv2.NORM_MINMAX)
                 depth_image_cv = np.uint8(depth_image_cv)
 
-                # Display the normalized depth channel
+                # Display the images
+                cv2.imshow("RGB Image", rgb_image_cv)
                 cv2.imshow("Depth Image", depth_image_cv)
-            except Exception:
-                print(f"No {frame_index+1} image")
+                cv2.waitKey(0)  # Wait for key press to proceed to the next image
+                cv2.destroyAllWindows()
+            except Exception as e:
+                print(f"Error displaying image at index {frame_index}: {str(e)}")
                 continue
-
-            cv2.imshow("Depth Image", depth_image_cv)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
 
             for bbox in bboxes:
                 print(bbox)
@@ -198,16 +199,18 @@ if __name__ == '__main__':
     os.chdir(r'../..')
 
     img_size = 640
+    pickle_file = r"src/common/data/gold_std/variables.pkl"
     save_dir = r"src/common/data/gold_std/rtabmap_extract"
-    image_dir = f"src/common/data/gold_std/raw_img/images"
+    image_dir = f"{save_dir}/rgb"
     depth_image_dir = f"{save_dir}/depth"
     print(f"{os.getcwd()}", flush=True)
 
-    with open(r"src/common/data/gold_std/variables.pkl", "rb") as file:
+    with open(pickle_file, "rb") as file:
         variables = pickle.load(file)
 
     pose_df = variables["pose_df"]
     predictions = variables["predictions"]
+
     dataset = ImageDataset(image_dir=image_dir, depth_image_dir=depth_image_dir, img_size=img_size)
     print(f"Pose: {pose_df}\n\nDepth Images: {len(dataset)}\n\nPredictions: {predictions}")
 
@@ -217,5 +220,5 @@ if __name__ == '__main__':
         bbox_coordinates=predictions,
         img_size=img_size,
     )
-    pose_processing.view_3d_bbox(image_dir, depth_image_dir)
+    pose_processing.view_3d_bbox(dataset)
     # global_bboxes_data = pose_processing.get_global_coordinates()
