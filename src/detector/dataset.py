@@ -5,17 +5,23 @@ from torch.utils.data import Dataset
 from torchvision.transforms import transforms
 
 class ImageDataset(Dataset):
-    def __init__(self, image_dir, depth_image_dir, img_size):
+    def __init__(self, image_dir, depth_image_dir, img_size, alt_width=256, alt_height=192, processing=True):
         self.image_dir, self.depth_image_dir = image_dir, depth_image_dir
         self.img_size = img_size
+        self.processing = processing
+
         self.image_filenames = sorted(os.listdir(image_dir))
         self.depth_image_filenames = sorted(os.listdir(depth_image_dir))
         self.paired_filenames = self._pair_filenames()
 
-        self.transform = transforms.Compose([
-            transforms.Resize((self.img_size, self.img_size)),
+        rgb_width = self.img_size if processing else alt_width
+        rgb_height = self.img_size if processing else alt_height
+
+        self.rgb_transform = transforms.Compose([
+            transforms.Resize((rgb_width, rgb_height)),
             transforms.ToTensor(),
         ])
+        self.depth_transform = transforms.ToTensor()
 
     def _pair_filenames(self):
         # Filter to keep only those files where both image and corresponding depth image exist
@@ -45,5 +51,8 @@ class ImageDataset(Dataset):
     def _load_image(self, path, is_depth=False):
         with Image.open(path) as img:
             if is_depth:
-                img = img.convert('L')
-            return self.transform(img)
+                depth = img.convert('L')
+                print(depth)
+                return self.depth_transform(img)[0, :, :] # the depth channel is channel 0
+            else:
+                return self.rgb_transform(img)

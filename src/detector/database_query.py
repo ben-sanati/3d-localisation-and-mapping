@@ -9,8 +9,8 @@ class ImageExtractor:
         self.db_path = db_path
         self.image_size = image_size
         self.save_dir = save_dir
-        self.image_dir = os.path.join(save_dir, 'images')
-        self.depth_dir = os.path.join(save_dir, 'depth_images')
+        self.image_dir = os.path.join(save_dir, 'rgb')
+        self.depth_dir = os.path.join(save_dir, 'depth')
         self._prepare_directories()
 
         self.conn = self._connect_to_database()
@@ -34,19 +34,19 @@ class ImageExtractor:
         """
         cursor = self.conn.cursor()
         cursor.execute("SELECT Data.image, Data.depth FROM Data JOIN Node ON Data.id = Node.id")
-        for idx, (row) in enumerate(cursor.fetchall()):
+        for i, (row) in enumerate(cursor.fetchall()):
+            idx = i + 1
+
             # Fetch the image data
             image = np.frombuffer(row[0], dtype=np.uint8)
             image = cv2.imdecode(image, cv2.IMREAD_COLOR)
-            image = cv2.resize(image, (self.image_size, self.image_size), interpolation=cv2.INTER_LINEAR)
-            image_path = os.path.join(self.image_dir, f"image_{idx}.jpg")
+            image_path = os.path.join(self.image_dir, f"{idx}.jpg")
             cv2.imwrite(image_path, image)
 
             # Fetch the depth data
             depth = np.frombuffer(row[1], dtype=np.uint8)
             depth = cv2.imdecode(depth, cv2.IMREAD_UNCHANGED)
-            depth = cv2.resize(depth, (self.image_size, self.image_size), interpolation=cv2.INTER_LINEAR)
-            depth_path = os.path.join(self.depth_dir, f"depth_{idx}.png")
+            depth_path = os.path.join(self.depth_dir, f"{idx}.png")
             cv2.imwrite(depth_path, depth)
 
     @staticmethod

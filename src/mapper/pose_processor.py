@@ -35,10 +35,10 @@ class ProcessPose:
         self.bbox_coordinates = bbox_coordinates
 
         # Acquired from rtabmap-databaseViewer
-        self.fx = 673
-        self.fy = 673
-        self.cx = 357
-        self.cy = 483.5
+        self.fx = 673 / 3
+        self.fy = 673 / 3
+        self.cx = 357 / 3
+        self.cy = 483.5 / 3
 
     def get_global_coordinates(self):
         """
@@ -131,78 +131,72 @@ class ProcessPose:
 
     def view_3d_bbox(self, dataset):
         for frame_index, bboxes in self.bbox_coordinates.items():
-            try:
-                # Fetch images from the dataset
-                rgb_tensor, depth_tensor = dataset[frame_index]
+            # Fetch images from the dataset
+            rgb_tensor, depth_tensor = dataset[frame_index]
 
-                # Convert tensors to PIL Images for display (assuming they're already in the correct size)
-                rgb_image_pil = to_pil_image(rgb_tensor)
-                depth_image_pil = to_pil_image(depth_tensor)
+            # Convert tensors to PIL Images for display (assuming they're already in the correct size)
+            rgb_image_pil = to_pil_image(rgb_tensor)
+            depth_image_pil = to_pil_image(depth_tensor)
 
-                # Convert PIL Images to OpenCV format for display
-                rgb_image_cv = cv2.cvtColor(np.array(rgb_image_pil), cv2.COLOR_RGB2BGR)
-                depth_image_cv = np.array(depth_image_pil)
+            # Convert PIL Images to OpenCV format for display
+            rgb_image_cv = cv2.cvtColor(np.array(rgb_image_pil), cv2.COLOR_RGB2BGR)
+            depth_image_cv = np.array(depth_image_pil)
 
-                # Print depth image stats
-                print(f"Depth ({depth_image_cv.shape}) : [{depth_image_cv.min()} - {depth_image_cv.max()}]")
+            # Print depth image stats
+            print(f"Depth ({depth_image_cv.shape}) : [{depth_image_cv.min()} - {depth_image_cv.max()}]")
+            print(depth_image_cv, flush=True)
 
-                # Normalize depth image for better visualization
-                depth_image_cv = cv2.normalize(depth_image_cv, None, 0, 255, cv2.NORM_MINMAX)
-                depth_image_cv = np.uint8(depth_image_cv)
+            # Normalize depth image for better visualization
+            depth_image_norm_cv = cv2.normalize(depth_image_cv, None, 0, 255, cv2.NORM_MINMAX)
+            depth_image_norm_cv = np.uint8(depth_image_norm_cv)
 
-                # Display the images
-                cv2.imshow("RGB Image", rgb_image_cv)
-                cv2.imshow("Depth Image", depth_image_cv)
-                cv2.waitKey(0)  # Wait for key press to proceed to the next image
-                cv2.destroyAllWindows()
-            except Exception as e:
-                print(f"Error displaying image at index {frame_index}: {str(e)}")
-                continue
+            # Display the images
+            cv2.imshow("RGB Image", rgb_image_cv)
+            cv2.imshow("Depth Image", depth_image_norm_cv)
+            cv2.waitKey(0)  # Wait for key press to proceed to the next image
+            cv2.destroyAllWindows()
 
+            # Convert each bounding box's corner points to global coordinates
+            print(f"Img 1:")
             for bbox in bboxes:
-                print(bbox)
+                x_min, y_min, x_max, y_max, confidence, class_id = bbox
+                print(f"\tBBox: {bbox}")
+                print(f"\tXmin: {x_min}\tYmin: {y_min}\tXmax: {x_max}\tYmax: {y_max}")
 
-            # # Convert images to Open3D format
-            # rgb_image_o3d = o3d.geometry.Image(rgb_image_cv)
-            # depth_image_o3d = o3d.geometry.Image(depth_image_cv)
+            # Convert PIL Images to Open3D images
+            rgb_image_o3d = o3d.geometry.Image(np.array(rgb_image_pil))
+            depth_image_o3d = o3d.geometry.Image(np.array(depth_image_cv).astype(np.uint16))  # Ensure depth is uint16
 
-            # # Create an RGBD image from RGB and depth images
-            # rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(
-            #     rgb_image_o3d,
-            #     depth_image_o3d,
-            #     depth_scale=1000.0,  # Adjust this according to the depth unit of your depth image
-            #     depth_trunc=3.0,     # Maximum depth value to be used
-            #     convert_rgb_to_intensity=False
-            # )
+            # Create an RGBD image
+            rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(
+                rgb_image_o3d,
+                depth_image_o3d,
+                depth_scale=1000.0,  # Adjust this based on your depth unit
+                depth_trunc=1.0,     # Adjust truncation for better visualization
+                convert_rgb_to_intensity=False
+            )
 
-            # # Define camera intrinsics, adjust these parameters to match the actual camera specs
-            # camera_intrinsics = o3d.camera.PinholeCameraIntrinsic(
-            #     width=self.img_size,  # width of the depth image
-            #     height=self.img_size,  # height of the depth image
-            #     fx=self.fx,  # focal length x
-            #     fy=self.fy,  # focal length y
-            #     cx=self.cx,  # principal point x
-            #     cy=self.cy   # principal point y
-            # )
+            # Generate point cloud
+            point_cloud = o3d.geometry.PointCloud.create_from_rgbd_image(
+                rgbd_image,
+                o3d.camera.PinholeCameraIntrinsic(256, 192, self.fx, self.fy, self.cx/2, self.cy/2)
+            )
 
-            # # Generate point cloud from the RGBD image using the intrinsic parameters
-            # point_cloud = o3d.geometry.PointCloud.create_from_rgbd_image(
-            #     rgbd_image,
-            #     camera_intrinsics
-            # )
-
-            # # Visualize the point cloud
-            # o3d.visualization.draw_geometries([point_cloud])
+            # Visualize the point cloud
+            o3d.visualization.draw_geometries([point_cloud])
+            break
 
 
 if __name__ == '__main__':
+    # TODO: check 3d map
     os.chdir(r'../..')
 
     img_size = 640
     pickle_file = r"src/common/data/gold_std/variables.pkl"
-    save_dir = r"src/common/data/gold_std/rtabmap_extract"
-    image_dir = f"{save_dir}/rgb"
-    depth_image_dir = f"{save_dir}/depth"
+
+    save_dir = r"src/common/data/gold_std"
+    image_dir = f"{save_dir}/rtabmap_extract/rgb"
+    depth_image_dir = f"{save_dir}/db_extract/depth"
     print(f"{os.getcwd()}", flush=True)
 
     with open(pickle_file, "rb") as file:
@@ -211,7 +205,7 @@ if __name__ == '__main__':
     pose_df = variables["pose_df"]
     predictions = variables["predictions"]
 
-    dataset = ImageDataset(image_dir=image_dir, depth_image_dir=depth_image_dir, img_size=img_size)
+    dataset = ImageDataset(image_dir=image_dir, depth_image_dir=depth_image_dir, img_size=img_size, processing=False)
     print(f"Pose: {pose_df}\n\nDepth Images: {len(dataset)}\n\nPredictions: {predictions}")
 
     pose_processing = ProcessPose(

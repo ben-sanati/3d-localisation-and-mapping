@@ -160,6 +160,7 @@ class ObjectDetector(nn.Module):
                             thickness=tf, lineType=cv2.LINE_AA)
 
             if self.view_img:
+                print(pred)
                 cv2.imshow("Image", img)
                 cv2.waitKey(0)
 
