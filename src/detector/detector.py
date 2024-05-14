@@ -159,13 +159,14 @@ class ObjectDetector(nn.Module):
                 cv2.putText(img, self.names[label], (c1[0], c1[1] - 2), 0, line_thickness / 3, [225, 255, 255],
                             thickness=tf, lineType=cv2.LINE_AA)
 
+            rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
             if self.view_img:
-                print(pred)
-                cv2.imshow("Image", img)
+                cv2.imshow("Image", rgb_img)
                 cv2.waitKey(0)
 
             # save image
-            cv2.imwrite(f"{self.save_img}/image{self.idx}.png", img)
+            cv2.imwrite(f"{self.save_img}/image{self.idx}.png", rgb_img)
             self.idx += 1
 
         if self.view_img:

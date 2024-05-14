@@ -83,14 +83,14 @@ def map_detected_objects(pose_path, dataset, predictions, img_size):
     )
     global_bboxes_data = pose_processing.get_global_coordinates()
 
-    for frame_index, bbox_list in global_bboxes_data.items():
-        for bbox in bbox_list:
-            print(f"{frame_index}: {bbox}")
+    # for frame_index, bbox_list in global_bboxes_data.items():
+    #     for bbox in bbox_list:
+    #         print(f"{frame_index}: {bbox}")
 
-    # Garbage collection
-    del pose_processing
-    gc.collect()
-    print("Pose Processed!", flush=True)
+    # # Garbage collection
+    # del pose_processing
+    # gc.collect()
+    # print("Pose Processed!", flush=True)
 
     return global_bboxes_data, pose_df
 
@@ -114,7 +114,7 @@ def plot_map(global_bboxes_data, eps, min_points, ply_path, preprocess_point_clo
 
 if __name__ == '__main__':
     eps = 0.02
-    img_size = 640
+    img_size = 1280
     batch_size = 2
     min_points = 10
     conf_thresh = 0.5
@@ -144,6 +144,7 @@ if __name__ == '__main__':
     gc.collect()
 
     # Map detected objects
+    dataset = ImageDataset(image_dir=image_dir, depth_image_dir=depth_image_dir, img_size=img_size, processing=False)
     global_bboxes_data, pose_df = map_detected_objects(pose_path, dataset, predictions, img_size)
 
     # # Save as pickle file and load later to use in another script

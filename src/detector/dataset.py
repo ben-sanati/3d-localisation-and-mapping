@@ -51,8 +51,6 @@ class ImageDataset(Dataset):
     def _load_image(self, path, is_depth=False):
         with Image.open(path) as img:
             if is_depth:
-                depth = img.convert('L')
-                print(depth)
                 return self.depth_transform(img)[0, :, :] # the depth channel is channel 0
             else:
                 return self.rgb_transform(img)
