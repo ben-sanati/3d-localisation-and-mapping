@@ -5,6 +5,8 @@
 *.jpg
 *.out
 *.pt
+*.txt
+*.pkl
 src/common/data
 
 # Models
