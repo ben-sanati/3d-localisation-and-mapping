@@ -141,26 +141,27 @@ class Mapping:
         # Make mesh/point_cloud
         vis.add_geometry(data)
 
-        # Add bounding boxes to the visualizer
-        for frame_index, bbox_list in self.global_bboxes_data.items():
-            for bbox in bbox_list:
-                print(f"BBox: {bbox}", flush=True)
-                points = [bbox[corner] for corner in range(4)]
-                line_set = o3d.geometry.LineSet(
-                    points=o3d.utility.Vector3dVector(points),
-                    lines=o3d.utility.Vector2iVector(self.lines)
-                )
-                print(f"Line Set: {line_set}")
-                render_option = vis.get_render_option()
-                render_option.line_width = 10.0
+        # # Add bounding boxes to the visualizer
+        # for frame_index, bbox_list in self.global_bboxes_data.items():
+        #     for bbox in bbox_list:
+        #         print(f"BBox: {bbox}", flush=True)
+        #         points = [bbox[corner] for corner in range(4)]
+        #         line_set = o3d.geometry.LineSet(
+        #             points=o3d.utility.Vector3dVector(points),
+        #             lines=o3d.utility.Vector2iVector(self.lines)
+        #         )
+        #         print(f"Line Set: {line_set}")
+        #         render_option = vis.get_render_option()
+        #         render_option.line_width = 10.0
 
         if self.overlay_pose:
             pose_point_cloud = o3d.geometry.PointCloud()
             pose_point_cloud.points = o3d.utility.Vector3dVector(self.pose[['tx', 'ty', 'tz']].values)
             vis.add_geometry(pose_point_cloud)
-            vis.add_geometry(line_set)
+            # vis.add_geometry(line_set)
         else:
             # o3d.visualization.draw_geometries([data, line_set])
+            line_set = None
             vis.add_geometry(line_set)
 
         # Run the visualizer
@@ -184,7 +185,7 @@ if __name__ == '__main__':
         eps=eps,
         min_points=min_points,
         ply_filepath=r"../common/data/gold_std/cloud.ply",
-        preprocess_point_cloud=False,
+        preprocess_point_cloud=True,
         overlay_pose=True,
     )
 

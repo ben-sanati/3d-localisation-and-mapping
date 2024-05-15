@@ -2,7 +2,7 @@ import os
 import gc
 import sys
 import pickle
-from memory_profiler import profile
+import configparser
 
 import torch
 from torch.utils.data import DataLoader
@@ -25,9 +25,14 @@ sys.path.append(
 )
 
 
+def load_config(file_path):
+    config = configparser.ConfigParser()
+    config.read(file_path)
+    return config
+
 def extract_images(db_path, img_size, batch_size, save_dir, image_dir, depth_image_dir):
     print("Extracting frames...", flush=True)
-    extractor = ImageExtractor(db_path, img_size, save_dir)
+    extractor = ImageExtractor(db_path, depth_image_dir)
     extractor.fetch_data()
 
     # Create dataset
@@ -113,22 +118,29 @@ def plot_map(global_bboxes_data, eps, min_points, ply_path, preprocess_point_clo
 
 
 if __name__ == '__main__':
-    eps = 0.02
-    img_size = 1280
-    batch_size = 2
-    min_points = 10
-    conf_thresh = 0.5
-    iou_thresh = 0.65
-    preprocess_point_cloud = False
+    # Load the configuration
+    config_path = r"src/common/configs/variables.cfg"
+    config = load_config(config_path)
 
-    db_path = r"src/common/data/gold_std/data.db"
-    ply_path = r"src/common/data/gold_std/cloud.ply"
-    pose_path = r"src/common/data/gold_std/poses.txt"
-    pickle_path = r"src/common/data/gold_std/variables.pkl"
+    # Access configuration variables from the 'detection' section
+    img_size = config.getint('detection', 'img_size')
+    batch_size = config.getint('detection', 'batch_size')
+    conf_thresh = config.getfloat('detection', 'conf_thresh')
+    iou_thresh = config.getfloat('detection', 'iou_thresh')
 
-    save_dir = r"src/common/data/gold_std"
-    image_dir = f"{save_dir}/rtabmap_extract/rgb"
-    depth_image_dir = f"{save_dir}/db_extract/depth"
+    # Access configuration variables from the 'mapping' section
+    eps = float(config['mapping']['eps'])
+    min_points = config.getint('mapping', 'min_points')
+    preprocess_point_cloud = config.getboolean('mapping', 'preprocess_point_cloud')
+
+    # Access paths from the 'paths' section
+    db_path = config['paths']['db_path']
+    ply_path = config['paths']['ply_path']
+    pose_path = config['paths']['pose_path']
+    pickle_path = config['paths']['pickle_path']
+    save_dir = config['paths']['save_dir']
+    image_dir = config['paths']['image_dir']
+    depth_image_dir = config['paths']['depth_image_dir']
 
     data_to_save = {}
 

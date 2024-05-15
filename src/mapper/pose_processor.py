@@ -4,6 +4,7 @@ import cv2
 import pickle
 import numpy as np
 import pandas as pd
+
 import open3d as o3d
 from scipy.spatial.transform import Rotation as R
 from torchvision.transforms.functional import to_pil_image
@@ -181,7 +182,7 @@ class ProcessPose:
 
 
 if __name__ == '__main__':
-    # TODO: check 3d map
+    # TODO: deal with 3D single image accuracy
     os.chdir(r'../..')
 
     img_size = 1280
@@ -199,7 +200,7 @@ if __name__ == '__main__':
     predictions = variables["predictions"]
 
     dataset = ImageDataset(image_dir=image_dir, depth_image_dir=depth_image_dir, img_size=img_size, processing=False)
-    # print(f"Pose: {pose_df}\n\nDepth Images: {len(dataset)}\n\nPredictions: {predictions}")
+    print(f"Pose: {pose_df}\n\nDepth Images: {len(dataset)}\n\nPredictions: {predictions}")
 
     pose_processing = ProcessPose(
         pose=pose_df,

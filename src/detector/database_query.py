@@ -5,12 +5,9 @@ import numpy as np
 
 
 class ImageExtractor:
-    def __init__(self, db_path, image_size, save_dir):
+    def __init__(self, db_path, depth_dir):
         self.db_path = db_path
-        self.image_size = image_size
-        self.save_dir = save_dir
-        self.image_dir = os.path.join(save_dir, 'rgb')
-        self.depth_dir = os.path.join(save_dir, 'depth')
+        self.depth_dir = depth_dir
         self._prepare_directories()
 
         self.conn = self._connect_to_database()
@@ -25,7 +22,6 @@ class ImageExtractor:
         """
         Ensure that the directories for storing images and depth images exist.
         """
-        os.makedirs(self.image_dir, exist_ok=True)
         os.makedirs(self.depth_dir, exist_ok=True)
 
     def fetch_data(self):
@@ -35,15 +31,8 @@ class ImageExtractor:
         cursor = self.conn.cursor()
         cursor.execute("SELECT Data.image, Data.depth FROM Data JOIN Node ON Data.id = Node.id")
         for i, (row) in enumerate(cursor.fetchall()):
-            idx = i + 1
-
-            # Fetch the image data
-            image = np.frombuffer(row[0], dtype=np.uint8)
-            image = cv2.imdecode(image, cv2.IMREAD_COLOR)
-            image_path = os.path.join(self.image_dir, f"{idx}.jpg")
-            cv2.imwrite(image_path, image)
-
             # Fetch the depth data
+            idx = i + 1
             depth = np.frombuffer(row[1], dtype=np.uint8)
             depth = cv2.imdecode(depth, cv2.IMREAD_UNCHANGED)
             depth_path = os.path.join(self.depth_dir, f"{idx}.png")
@@ -67,6 +56,6 @@ class ImageExtractor:
 
 if __name__ == '__main__':
     db_path = '../common/data/gold_std/data.db'
-    extractor = ImageExtractor(db_path, img_size=640, save_dir="../common/data/gold_std/raw_img")
+    extractor = ImageExtractor(db_path, depth_dir="../common/data/gold_std/db_extract/depth")
     data = extractor.fetch_data()
     extractor.view_images(data)
