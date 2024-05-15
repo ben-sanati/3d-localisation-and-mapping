@@ -5,6 +5,7 @@ import pickle
 import configparser
 import numpy as np
 import pandas as pd
+from PIL import Image, ImageDraw, ImageFont
 
 import open3d as o3d
 from scipy.spatial import KDTree
@@ -103,6 +104,7 @@ class ProcessPose:
         )
         vis.add_geometry(point_cloud)
 
+        # The 3D corners are refined by mapping them to the nearest points in the point cloud using the KDTree
         point_cloud_tree = KDTree(np.asarray(point_cloud.points))
 
         for bbox in bboxes:
@@ -114,37 +116,51 @@ class ProcessPose:
             # Scale bbox coordinates from initial image size to depth image width and height
             scaled_corners = self._scale_bounding_box(corners, (self.img_size, self.img_size), (self.depth_width, self.depth_height))
 
-            # Calculate the 3d bbox coordinates based over the interquartile depth values within the bbox
-            q1_depth, q3_depth = self._calculate_interquartile_depths(depth_image_cv, scaled_corners)
+            # Calculate the 3d bbox coordinates based over the median depth values within the bbox
+            median_depth = self._calculate_median_depth(depth_image_cv, scaled_corners)
+            depth_buffer = median_depth / (self.scale_depth * 100)
 
             # Generate 3D corners with z-values from q1 to q3 depth
-            corners_3d_q1 = [self._depth_to_3d(int(x), int(y), q1_depth, fx, fy, cx, cy) for x, y in scaled_corners]
-            corners_3d_q3 = [self._depth_to_3d(int(x), int(y), q3_depth, fx, fy, cx, cy) for x, y in scaled_corners]
+            corners_3d = [self._depth_to_3d(int(x), int(y), median_depth, fx, fy, cx, cy) for x, y in scaled_corners]
 
-            # Combine bottom and top corners
-            corners_3d_combined = corners_3d_q1 + corners_3d_q3
+            # Map to nearest points in the point cloud (these are the actual coordinates)
+            mapped_corners_3d = [self._map_to_nearest_point(corner, point_cloud_tree) for corner in corners_3d]
 
-            # Map to nearest points in the point cloud
-            mapped_corners_3d = [self._map_to_nearest_point(corner, point_cloud_tree) for corner in corners_3d_combined]
+            # Create 3d bbox for visualisation
+            corners_3d_top = [corner + np.array([0, 0, depth_buffer]) for corner in mapped_corners_3d]
+            corners_3d_bottom = [corner - np.array([0, 0, depth_buffer]) for corner in mapped_corners_3d]
 
             print(f"3D Corners: {mapped_corners_3d}", flush=True)
 
             # Define lines based on corner points for a flat box
             lines = [
-                [0, 1], [1, 2], [2, 3], [3, 0],  # Bottom face
-                [4, 5], [5, 6], [6, 7], [7, 4],  # Top face
-                [0, 4], [1, 5], [2, 6], [3, 7]   # Vertical edges
+                [0, 1], [1, 2], [2, 3], [3, 0], # bottom face
+                [4, 5], [5, 6], [6, 7], [7, 4], # top face
+                [0, 4], [1, 5], [2, 6], [3, 7]  # vertical edges
             ]
+
+            visualise_corners_3d = corners_3d_top + corners_3d_bottom
 
             # Create line set for bounding box
             line_set = o3d.geometry.LineSet(
-                points=o3d.utility.Vector3dVector(mapped_corners_3d),
+                points=o3d.utility.Vector3dVector(visualise_corners_3d),
                 lines=o3d.utility.Vector2iVector(lines)
             )
 
             # Set colors (e.g., red) for each line
+            vis.get_render_option().line_width = 2
             line_set.paint_uniform_color([1, 0, 0])
             vis.add_geometry(line_set)
+
+            # Add text above the bounding box
+            text = "BoundingBox"
+            text_mesh = o3d.t.geometry.TriangleMesh.create_text(text, depth=0.1).to_legacy()
+            text_mesh.paint_uniform_color([1, 0, 0])
+
+            # Position the text mesh at the top-left corner above the bounding box
+            location = mapped_corners_3d[0]
+            text_mesh.transform([[0.0005, 0, 0, location[0]], [0, 0.0005, 0, location[1]], [0, 0, 0.0005, location[2]], [0, 0, 0, 1]])
+            vis.add_geometry(text_mesh)
 
         # Visualize
         vis.poll_events()
@@ -175,26 +191,22 @@ class ProcessPose:
         return scaled_corners
 
     @staticmethod
-    def _calculate_interquartile_depths(depth_image, scaled_corners):
+    def _calculate_median_depth(depth_image, scaled_corners):
         x_min = int(min([c[0] for c in scaled_corners]))
         x_max = int(max([c[0] for c in scaled_corners]))
         y_min = int(min([c[1] for c in scaled_corners]))
         y_max = int(max([c[1] for c in scaled_corners]))
 
-        # Extract the depth values in the bounding box area
         depth_values = depth_image[y_min:y_max+1, x_min:x_max+1].flatten()
 
-        # Filter out zero values
         non_zero_depths = depth_values[depth_values > 0]
 
         if len(non_zero_depths) == 0:
-            return 0, 0
+            return 0
 
-        # Calculate the 1st and 3rd quartile of the non-zero depth values
-        q1_depth = np.percentile(non_zero_depths, 25)
-        q3_depth = np.percentile(non_zero_depths, 75)
+        median_depth = np.median(non_zero_depths)
 
-        return q1_depth, q3_depth
+        return median_depth
 
     def _depth_to_3d(self, x, y, depth, fx, fy, cx, cy):
         """
