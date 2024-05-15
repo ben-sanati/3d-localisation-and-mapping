@@ -61,8 +61,13 @@ class ImageDataset(Dataset):
     def _load_calibration(self, calibration_path):
         with open(calibration_path, 'r') as file:
             calibration_data = yaml.safe_load(file)
+
+        image_width = calibration_data.get('image_width', None)
+        image_height = calibration_data.get('image_height', None)
+
         fx = calibration_data['camera_matrix']['data'][0]
         fy = calibration_data['camera_matrix']['data'][4]
         cx = calibration_data['camera_matrix']['data'][2]
         cy = calibration_data['camera_matrix']['data'][5]
-        return {'fx': fx, 'fy': fy, 'cx': cx, 'cy': cy}
+
+        return {'image_width': image_width, 'image_height': image_height,'fx': fx, 'fy': fy, 'cx': cx, 'cy': cy}
