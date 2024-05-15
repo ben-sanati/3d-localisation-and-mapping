@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 
 import open3d as o3d
+from scipy.spatial import KDTree
 from scipy.spatial.transform import Rotation as R
 from torchvision.transforms.functional import to_pil_image
 
@@ -25,6 +26,7 @@ class ProcessPose:
         depth_width,
         depth_height,
         display_rgbd=False,
+        scale_depth=1000,
     ):
         """
         Initializes the ProcessPose class with pose data, depth images, and bounding box coordinates.
@@ -36,6 +38,7 @@ class ProcessPose:
             img_size (int): Size of the images.
             depth_width (int): Width of the depth images.
             depth_height (int): Height of the depth images.
+            depth_scale (int): Float, scale factor for depth (e.g., 1000.0 if depth is in millimeters and you need meters)
         """
         self.pose = pose
         self.dataset = dataset
@@ -45,6 +48,7 @@ class ProcessPose:
         self.depth_width = depth_width
         self.depth_height = depth_height
         self.display_rgbd = display_rgbd
+        self.scale_depth = scale_depth
 
     def get_global_coordinates(self):
         for idx, (frame_index, bboxes) in enumerate(self.bbox_coordinates.items()):
@@ -83,8 +87,7 @@ class ProcessPose:
         rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(
             rgb_image_o3d,
             depth_image_o3d,
-            depth_scale=1000.0,
-            depth_trunc=1.0,
+            depth_scale=self.scale_depth,
             convert_rgb_to_intensity=False
         )
 
@@ -100,22 +103,42 @@ class ProcessPose:
         )
         vis.add_geometry(point_cloud)
 
+        point_cloud_tree = KDTree(np.asarray(point_cloud.points))
+
         for bbox in bboxes:
             corners = [
                 (bbox[0], bbox[1]), (bbox[0], bbox[3]),
                 (bbox[2], bbox[3]), (bbox[2], bbox[1])
             ]
+
+            # Scale bbox coordinates from initial image size to depth image width and height
             scaled_corners = self._scale_bounding_box(corners, (self.img_size, self.img_size), (self.depth_width, self.depth_height))
-            corners_3d = [self._depth_to_3d(int(x), int(y), depth_image_cv, 1000, fx, fy, cx, cy) for x, y in scaled_corners]
+
+            # Calculate the 3d bbox coordinates based over the interquartile depth values within the bbox
+            q1_depth, q3_depth = self._calculate_interquartile_depths(depth_image_cv, scaled_corners)
+
+            # Generate 3D corners with z-values from q1 to q3 depth
+            corners_3d_q1 = [self._depth_to_3d(int(x), int(y), q1_depth, fx, fy, cx, cy) for x, y in scaled_corners]
+            corners_3d_q3 = [self._depth_to_3d(int(x), int(y), q3_depth, fx, fy, cx, cy) for x, y in scaled_corners]
+
+            # Combine bottom and top corners
+            corners_3d_combined = corners_3d_q1 + corners_3d_q3
+
+            # Map to nearest points in the point cloud
+            mapped_corners_3d = [self._map_to_nearest_point(corner, point_cloud_tree) for corner in corners_3d_combined]
+
+            print(f"3D Corners: {mapped_corners_3d}", flush=True)
 
             # Define lines based on corner points for a flat box
             lines = [
-                [0, 1], [1, 2], [2, 3], [3, 0]  # Just the bottom rectangle
+                [0, 1], [1, 2], [2, 3], [3, 0],  # Bottom face
+                [4, 5], [5, 6], [6, 7], [7, 4],  # Top face
+                [0, 4], [1, 5], [2, 6], [3, 7]   # Vertical edges
             ]
 
             # Create line set for bounding box
             line_set = o3d.geometry.LineSet(
-                points=o3d.utility.Vector3dVector(corners_3d),
+                points=o3d.utility.Vector3dVector(mapped_corners_3d),
                 lines=o3d.utility.Vector2iVector(lines)
             )
 
@@ -128,49 +151,6 @@ class ProcessPose:
         vis.update_renderer()
         vis.run()
         vis.destroy_window()
-
-    def _depth_to_3d(self, x, y, depth_image, scale_depth, fx, fy, cx, cy):
-        """
-        Converts 2D pixel coordinates from the depth image to 3D space coordinates.
-
-        Parameters:
-            x (int): X-coordinate in the 2D image.
-            y (int): Y-coordinate in the 2D image.
-            depth_image (numpy.ndarray): Depth image to convert coordinates from.
-            depth_scale (int): Float, scale factor for depth (e.g., 1000.0 if depth is in millimeters and you need meters)
-
-        Returns:
-            numpy.ndarray: 3D coordinates [X, Y, Z] relative to the camera frame.
-        """
-        # Extract the depth value at (x, y) (rtabmap uses mm by default)
-        Z = depth_image[x, y] / scale_depth
-
-        # Convert (x, y) coordinates into 3D space based on camera intrinsic parameters
-        X = (x - cx) * Z / fx
-        Y = (y - cy) * Z / fy
-
-        # Return the 3D point as a numpy array
-        return np.array([X, Y, Z])
-
-    def _transform_to_global(self, local_point, pose):
-        """
-        Transforms a 3D point from the camera frame to the global coordinate frame using the given pose.
-
-        Parameters:
-            local_point (numpy.ndarray): 3D coordinates [X, Y, Z] in the camera frame.
-            pose (numpy.ndarray): Pose data containing translation and rotation (quaternion).
-
-        Returns:
-            numpy.ndarray: Transformed 3D point in the global coordinate frame.
-        """
-        # Extract the translation and quaternion rotation from the pose
-        tx, ty, tz, qx, qy, qz, qw = pose
-        translation = np.array([tx, ty, tz])
-        rotation = R.from_quat([qx, qy, qz, qw])
-
-        # Apply rotation and translation to obtain the global coordinates
-        global_point = rotation.apply(local_point) + translation
-        return global_point
 
     @staticmethod
     def _scale_bounding_box(corners, original_size, new_size):
@@ -193,6 +173,76 @@ class ProcessPose:
         scaled_corners = [(x * scale_x, y * scale_y) for (x, y) in corners]
 
         return scaled_corners
+
+    @staticmethod
+    def _calculate_interquartile_depths(depth_image, scaled_corners):
+        x_min = int(min([c[0] for c in scaled_corners]))
+        x_max = int(max([c[0] for c in scaled_corners]))
+        y_min = int(min([c[1] for c in scaled_corners]))
+        y_max = int(max([c[1] for c in scaled_corners]))
+
+        # Extract the depth values in the bounding box area
+        depth_values = depth_image[y_min:y_max+1, x_min:x_max+1].flatten()
+
+        # Filter out zero values
+        non_zero_depths = depth_values[depth_values > 0]
+
+        if len(non_zero_depths) == 0:
+            return 0, 0
+
+        # Calculate the 1st and 3rd quartile of the non-zero depth values
+        q1_depth = np.percentile(non_zero_depths, 25)
+        q3_depth = np.percentile(non_zero_depths, 75)
+
+        return q1_depth, q3_depth
+
+    def _depth_to_3d(self, x, y, depth, fx, fy, cx, cy):
+        """
+        Converts 2D pixel coordinates from the depth image to 3D space coordinates.
+
+        Parameters:
+            x (int): X-coordinate in the 2D image.
+            y (int): Y-coordinate in the 2D image.
+            depth_image (numpy.ndarray): Depth image to convert coordinates from.
+
+        Returns:
+            numpy.ndarray: 3D coordinates [X, Y, Z] relative to the camera frame.
+        """
+        # Extract the depth value at (x, y) (rtabmap uses mm by default)
+        Z = depth / self.scale_depth
+
+        # Convert (x, y) coordinates into 3D space based on camera intrinsic parameters
+        X = (x - cx) * Z / fx
+        Y = (y - cy) * Z / fy
+
+        # Return the 3D point as a numpy array
+        return np.array([X, Y, Z])
+
+    @staticmethod
+    def _map_to_nearest_point(point, point_cloud_tree):
+        dist, idx = point_cloud_tree.query(point)
+        nearest_point = point_cloud_tree.data[idx]
+        return nearest_point
+
+    def _transform_to_global(self, local_point, pose):
+        """
+        Transforms a 3D point from the camera frame to the global coordinate frame using the given pose.
+
+        Parameters:
+            local_point (numpy.ndarray): 3D coordinates [X, Y, Z] in the camera frame.
+            pose (numpy.ndarray): Pose data containing translation and rotation (quaternion).
+
+        Returns:
+            numpy.ndarray: Transformed 3D point in the global coordinate frame.
+        """
+        # Extract the translation and quaternion rotation from the pose
+        tx, ty, tz, qx, qy, qz, qw = pose
+        translation = np.array([tx, ty, tz])
+        rotation = R.from_quat([qx, qy, qz, qw])
+
+        # Apply rotation and translation to obtain the global coordinates
+        global_point = rotation.apply(local_point) + translation
+        return global_point
 
 
 if __name__ == '__main__':
