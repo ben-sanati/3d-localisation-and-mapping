@@ -36,7 +36,7 @@ def extract_images(db_path, img_size, batch_size, save_dir, image_dir, depth_ima
     extractor.fetch_data()
 
     # Create dataset
-    dataset = ImageDataset(image_dir=image_dir, depth_image_dir=depth_image_dir, img_size=img_size)
+    dataset = ImageDataset(image_dir=image_dir, depth_image_dir=depth_image_dir, calibration_dir=calibration_dir, img_size=img_size)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
     # Garbage collection
@@ -69,9 +69,9 @@ def detect_signs(dataloader, img_size, batch_size, conf_thresh, iou_thresh):
 
     return predictions
 
-def map_detected_objects(pose_path, dataset, predictions, img_size):
+def map_detected_objects(pose_path, dataset, predictions, img_size, depth_width, depth_height):
     # Get the node information from the table
-    print("Extracting Pose Information...", flush=True)    
+    print("Extracting Pose Information...", flush=True)
     extractor = PoseDataExtractor(pose_path)
     pose_df = extractor.fetch_data()
     del extractor
@@ -85,6 +85,8 @@ def map_detected_objects(pose_path, dataset, predictions, img_size):
         dataset=dataset,
         bbox_coordinates=predictions,
         img_size=img_size,
+        depth_width=depth_width,
+        depth_height=depth_height,
     )
     global_bboxes_data = pose_processing.get_global_coordinates()
 
@@ -132,6 +134,8 @@ if __name__ == '__main__':
     eps = float(config['mapping']['eps'])
     min_points = config.getint('mapping', 'min_points')
     preprocess_point_cloud = config.getboolean('mapping', 'preprocess_point_cloud')
+    depth_width = config.getint('mapping', 'depth_width')
+    depth_height = config.getint('mapping', 'depth_height')
 
     # Access paths from the 'paths' section
     db_path = config['paths']['db_path']
@@ -141,6 +145,7 @@ if __name__ == '__main__':
     save_dir = config['paths']['save_dir']
     image_dir = config['paths']['image_dir']
     depth_image_dir = config['paths']['depth_image_dir']
+    calibration_dir = config['paths']['calibration_dir']
 
     data_to_save = {}
 
@@ -156,8 +161,8 @@ if __name__ == '__main__':
     gc.collect()
 
     # Map detected objects
-    dataset = ImageDataset(image_dir=image_dir, depth_image_dir=depth_image_dir, img_size=img_size, processing=False)
-    global_bboxes_data, pose_df = map_detected_objects(pose_path, dataset, predictions, img_size)
+    dataset = ImageDataset(image_dir=image_dir, depth_image_dir=depth_image_dir, calibration_dir=calibration_dir, img_size=img_size, processing=False)
+    global_bboxes_data, pose_df = map_detected_objects(pose_path, dataset, predictions, img_size, depth_width, depth_height)
 
     # # Save as pickle file and load later to use in another script
     data_to_save["global_bboxes_data"] = global_bboxes_data

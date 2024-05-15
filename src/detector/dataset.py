@@ -1,12 +1,13 @@
 import os
+import yaml
 from PIL import Image
 
 from torch.utils.data import Dataset
 from torchvision.transforms import transforms
 
 class ImageDataset(Dataset):
-    def __init__(self, image_dir, depth_image_dir, img_size, alt_width=256, alt_height=192, processing=True):
-        self.image_dir, self.depth_image_dir = image_dir, depth_image_dir
+    def __init__(self, image_dir, depth_image_dir, calibration_dir, img_size, alt_width=256, alt_height=192, processing=True):
+        self.image_dir, self.depth_image_dir, self.calibration_dir = image_dir, depth_image_dir, calibration_dir
         self.img_size = img_size
         self.processing = processing
 
@@ -42,11 +43,13 @@ class ImageDataset(Dataset):
         
         image_path = os.path.join(self.image_dir, image_filename)
         depth_image_path = os.path.join(self.depth_image_dir, depth_filename)
+        calibration_path = os.path.join(self.calibration_dir, image_filename.replace('.jpg', '.yaml'))
 
         image_tensor = self._load_image(image_path)
         depth_image_tensor = self._load_image(depth_image_path, is_depth=True)
+        camera_intrinsics = self._load_calibration(calibration_path)
 
-        return image_tensor, depth_image_tensor
+        return image_tensor, depth_image_tensor, camera_intrinsics
 
     def _load_image(self, path, is_depth=False):
         with Image.open(path) as img:
@@ -54,3 +57,12 @@ class ImageDataset(Dataset):
                 return self.depth_transform(img)[0, :, :] # the depth channel is channel 0
             else:
                 return self.rgb_transform(img)
+
+    def _load_calibration(self, calibration_path):
+        with open(calibration_path, 'r') as file:
+            calibration_data = yaml.safe_load(file)
+        fx = calibration_data['camera_matrix']['data'][0]
+        fy = calibration_data['camera_matrix']['data'][4]
+        cx = calibration_data['camera_matrix']['data'][2]
+        cy = calibration_data['camera_matrix']['data'][5]
+        return {'fx': fx, 'fy': fy, 'cx': cx, 'cy': cy}

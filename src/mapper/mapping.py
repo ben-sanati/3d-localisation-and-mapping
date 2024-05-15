@@ -186,7 +186,7 @@ if __name__ == '__main__':
         min_points=min_points,
         ply_filepath=r"../common/data/gold_std/cloud.ply",
         preprocess_point_cloud=True,
-        overlay_pose=True,
+        overlay_pose=False,
     )
 
     # Either make a point cloud or a mesh

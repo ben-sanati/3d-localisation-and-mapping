@@ -2,6 +2,7 @@ import os
 import sys
 import cv2
 import pickle
+import configparser
 import numpy as np
 import pandas as pd
 
@@ -21,6 +22,8 @@ class ProcessPose:
         dataset,
         bbox_coordinates,
         img_size,
+        depth_width,
+        depth_height,
         depth_to_rgb_scale=3,
     ):
         """
@@ -31,10 +34,13 @@ class ProcessPose:
             dataset (torch.Dataset): PyTorch Dataset of images and depth images corresponding to each frame.
             bbox_coordinates (dict): Dictionary of bounding boxes, keyed by frame index.
         """
-        self.img_size = img_size
         self.pose = pose
         self.dataset = dataset
         self.bbox_coordinates = bbox_coordinates
+
+        self.img_size = img_size
+        self.depth_width = depth_width
+        self.depth_height = depth_height
         self.depth_to_rgb_scale = depth_to_rgb_scale
 
         # Acquired from rtabmap-databaseViewer and scaled based on depth to RGB size difference (192,256) * 3 = (576, 768)
@@ -46,7 +52,7 @@ class ProcessPose:
     def get_global_coordinates(self):
         for idx, (frame_index, bboxes) in enumerate(self.bbox_coordinates.items()):
             # Acquire images
-            rgb_tensor, depth_tensor = self.dataset[frame_index]
+            rgb_tensor, depth_tensor, camera_intrinsics = self.dataset[frame_index]
             rgb_image_pil = to_pil_image(rgb_tensor)
             depth_image_pil = to_pil_image(depth_tensor)
             rgb_image_cv = cv2.cvtColor(np.array(rgb_image_pil), cv2.COLOR_RGB2BGR)
@@ -74,7 +80,7 @@ class ProcessPose:
                 convert_rgb_to_intensity=False
             )
 
-            intrinsics = o3d.camera.PinholeCameraIntrinsic(192, 256, self.fx, self.fy, self.cx, self.cy)
+            intrinsics = o3d.camera.PinholeCameraIntrinsic(self.depth_width, self.depth_height, self.fx, self.fy, self.cx, self.cy)
             point_cloud = o3d.geometry.PointCloud.create_from_rgbd_image(
                 rgbd_image,
                 intrinsics
@@ -88,7 +94,7 @@ class ProcessPose:
                     (bbox[0], bbox[1]), (bbox[0], bbox[3]),
                     (bbox[2], bbox[3]), (bbox[2], bbox[1])
                 ]
-                scaled_corners = self._scale_bounding_box(corners, (1280, 1280), (192, 256))
+                scaled_corners = self._scale_bounding_box(corners, (self.img_size, self.img_size), (self.depth_width, self.depth_height))
                 corners_3d = [self._depth_to_3d(int(x), int(y), depth_image_norm_cv, 1000) for x, y in scaled_corners]
 
                 print(f"\tCorners: {corners_3d}")
@@ -184,22 +190,33 @@ class ProcessPose:
 if __name__ == '__main__':
     # TODO: deal with 3D single image accuracy
     os.chdir(r'../..')
+    config_path = r"src/common/configs/variables.cfg"
+    config = configparser.ConfigParser()
+    config.read(config_path)
 
-    img_size = 1280
-    pickle_file = r"src/common/data/gold_std/variables.pkl"
+    img_size = config.getint('detection', 'img_size')
+    depth_width = config.getint('mapping', 'depth_width')
+    depth_height = config.getint('mapping', 'depth_height')
+    pickle_path = config['paths']['pickle_path']
 
-    save_dir = r"src/common/data/gold_std"
-    image_dir = f"{save_dir}/rtabmap_extract/rgb"
-    depth_image_dir = f"{save_dir}/db_extract/depth"
-    print(f"{os.getcwd()}", flush=True)
+    save_dir = config['paths']['save_dir']
+    image_dir = config['paths']['image_dir']
+    depth_image_dir = config['paths']['depth_image_dir']
+    calibration_dir = config['paths']['calibration_dir']
 
-    with open(pickle_file, "rb") as file:
+    with open(pickle_path, "rb") as file:
         variables = pickle.load(file)
 
     pose_df = variables["pose_df"]
     predictions = variables["predictions"]
 
-    dataset = ImageDataset(image_dir=image_dir, depth_image_dir=depth_image_dir, img_size=img_size, processing=False)
+    dataset = ImageDataset(
+        image_dir=image_dir,
+        depth_image_dir=depth_image_dir,
+        calibration_dir=calibration_dir,
+        img_size=img_size,
+        processing=False
+    )
     print(f"Pose: {pose_df}\n\nDepth Images: {len(dataset)}\n\nPredictions: {predictions}")
 
     pose_processing = ProcessPose(
@@ -207,6 +224,8 @@ if __name__ == '__main__':
         dataset=dataset,
         bbox_coordinates=predictions,
         img_size=img_size,
+        depth_width=depth_width,
+        depth_height=depth_height,
     )
     pose_processing.get_global_coordinates()
     # global_bboxes_data = pose_processing.get_global_coordinates()
