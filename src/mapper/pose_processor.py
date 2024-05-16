@@ -28,7 +28,7 @@ class ProcessPose:
         depth_height,
         display_rgbd=False,
         display_3d=False,
-        scale_depth=130,
+        scale_depth=100,
     ):
         """
         Initializes the ProcessPose class with pose data, depth images, and bounding box coordinates.
@@ -87,6 +87,15 @@ class ProcessPose:
         return rgb_image_pil, rgb_image_cv, depth_image_cv, depth_image_norm_cv, camera_intrinsics
 
     def _3d_processing(self, pose_data, rgb_image_pil, depth_image_cv, bboxes, camera_intrinsics):
+        # calculate extrinsics        
+        tx, ty, tz, qx, qy, qz, qw = pose_data
+        translation = np.array([tx, ty, tz])
+        rotation = R.from_quat([qx, qy, qz, qw]).as_matrix()
+        extrinsics = np.eye(4)
+        extrinsics[:3, :3] = rotation
+        extrinsics[:3, 3] = translation
+        # extrinsics = np.linalg.inv(extrinsics)
+
         # Configure the 3D visualizer
         if self.display_3d:
             vis = o3d.visualization.Visualizer()
@@ -108,16 +117,10 @@ class ProcessPose:
         cx = camera_intrinsics["cx"] / depth_to_rgb_scale
         cy = camera_intrinsics["cy"] / depth_to_rgb_scale
         intrinsics = o3d.camera.PinholeCameraIntrinsic(self.depth_width, self.depth_height, fx, fy, cx, cy)
-        tx, ty, tz, qx, qy, qz, qw = pose_data
-        translation = np.array([tx, ty, tz])
-        rotation = R.from_quat([qx, qy, qz, qw]).as_matrix()
-        extrinsics = np.eye(4)
-        extrinsics[:3, :3] = rotation
-        extrinsics[:3, 3] = translation
         point_cloud = o3d.geometry.PointCloud.create_from_rgbd_image(
             rgbd_image,
             intrinsics,
-            # extrinsics
+            extrinsics,
         )
         if self.display_3d:
             vis.add_geometry(point_cloud)
@@ -135,7 +138,7 @@ class ProcessPose:
             ]
 
             # Scale bbox coordinates from initial image size to depth image width and height
-            scaled_corners = self._scale_bounding_box(corners, (self.img_size, self.img_size), (self.depth_width, self.depth_height))
+            scaled_corners = self._scale_bounding_box(corners, (self.img_size, self.img_size), (self.depth_width - 1, self.depth_height - 1))
 
             # Calculate the 3d bbox coordinates based over the median depth values within the bbox
             median_depth = self._calculate_median_depth(depth_image_cv, scaled_corners)
@@ -150,23 +153,26 @@ class ProcessPose:
             # Create 3d bbox for visualisation
             corners_3d_top = [corner + np.array([0, 0, bbox_depth_buffer]) for corner in corners_3d]
             corners_3d_bottom = [corner - np.array([0, 0, bbox_depth_buffer]) for corner in corners_3d]
+            visualise_corners_3d = corners_3d_top + corners_3d_bottom
 
             # Define lines based on corner points for a flat box
             lines = [
                 [0, 1], [1, 2], [2, 3], [3, 0], # bottom face
-                [4, 5], [5, 6], [6, 7], [7, 4], # top face
-                [0, 4], [1, 5], [2, 6], [3, 7]  # vertical edges
+                # [4, 5], [5, 6], [6, 7], [7, 4], # top face
+                # [0, 4], [1, 5], [2, 6], [3, 7]  # vertical edges
             ]
 
             # Get global coordinates
             global_corners = [self._transform_to_global(corner, pose_data) for corner in corners_3d]
-            # corners_3d_top = [corner + np.array([0, 0, bbox_depth_buffer]) for corner in global_corners]
-            # corners_3d_bottom = [corner - np.array([0, 0, bbox_depth_buffer]) for corner in global_corners]
+            frame_global_bboxes.append(global_corners)
+
+            corners_3d_top = [corner + np.array([0, 0, bbox_depth_buffer]) for corner in global_corners]
+            corners_3d_bottom = [corner - np.array([0, 0, bbox_depth_buffer]) for corner in global_corners]
             visualise_corners_3d = corners_3d_top + corners_3d_bottom
 
             # Create line set for bounding box
             line_set = o3d.geometry.LineSet(
-                points=o3d.utility.Vector3dVector(visualise_corners_3d),
+                points=o3d.utility.Vector3dVector(global_corners),
                 lines=o3d.utility.Vector2iVector(lines)
             )
 
@@ -175,8 +181,6 @@ class ProcessPose:
                 vis.get_render_option().line_width = 2
                 line_set.paint_uniform_color([1, 0, 0])
                 vis.add_geometry(line_set)
-
-            frame_global_bboxes.append(global_corners)
 
             # Debugging prints
             print(f"\tOriginal 2D Corners: {corners}")
@@ -235,7 +239,7 @@ class ProcessPose:
 
         return median_depth
 
-    def _depth_to_3d(self, x, y, depth, fx, fy, cx, cy):
+    def _depth_to_3d(self, x, y, rgbd_image, fx, fy, cx, cy):
         """
         Converts 2D pixel coordinates from the depth image to 3D space coordinates.
 
@@ -248,8 +252,8 @@ class ProcessPose:
             numpy.ndarray: 3D coordinates [X, Y, Z] relative to the camera frame.
         """
         # Extract the depth value at (x, y) (rtabmap uses mm by default)
-        print(np.array(depth).shape, np.array(depth))
-        Z = np.array(depth)[x, y, -1] / self.scale_depth
+        depth_image = np.asarray(rgbd_image.depth)
+        Z = depth_image[y, x] # / self.scale_depth
 
         # Convert (x, y) coordinates into 3D space based on camera intrinsic parameters
         X = (x - cx) * Z / fx
@@ -279,9 +283,14 @@ class ProcessPose:
         tx, ty, tz, qx, qy, qz, qw = pose
         translation = np.array([tx, ty, tz])
         rotation = R.from_quat([qx, qy, qz, qw])
+        transform = np.eye(4, 4)
+        transform[:3, :3] = rotation.as_matrix()
+        transform[:3, 3] = translation
+        transform = np.linalg.inv(transform)
+        local_point = np.array([*local_point, 1])
 
         # Apply rotation and translation to obtain the global coordinates
-        global_point = rotation.apply(local_point) + translation
+        global_point = (transform @ local_point)[:3]
         return global_point
 
 

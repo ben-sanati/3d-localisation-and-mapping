@@ -37,8 +37,8 @@ class Mapping:
 
         self.lines = [
             [0, 1], [1, 2], [2, 3], [3, 0], # bottom face
-            [4, 5], [5, 6], [6, 7], [7, 4], # top face
-            [0, 4], [1, 5], [2, 6], [3, 7]  # vertical edges
+            # [4, 5], [5, 6], [6, 7], [7, 4], # top face
+            # [0, 4], [1, 5], [2, 6], [3, 7]  # vertical edges
         ]
 
         # Mesh data
