@@ -22,9 +22,10 @@ class Mapping:
         overlay_pose=False,
         radius=0.1,
         max_nn=30,
-        depth=9,
+        depth=10,
         alpha=0.02,
-        radii = [0.005, 0.01, 0.02, 0.04]
+        radii = [0.005, 0.01, 0.02, 0.04],
+        scale_factor = 1.0,
     ):
         self.eps = eps
         self.pose = pose
@@ -35,7 +36,9 @@ class Mapping:
         self.preprocess_point_cloud = preprocess_point_cloud
 
         self.lines = [
-            [0, 1], [1, 2], [2, 3], [3, 0],
+            [0, 1], [1, 2], [2, 3], [3, 0], # bottom face
+            [4, 5], [5, 6], [6, 7], [7, 4], # top face
+            [0, 4], [1, 5], [2, 6], [3, 7]  # vertical edges
         ]
 
         # Mesh data
@@ -44,6 +47,7 @@ class Mapping:
         self.depth = depth
         self.alpha = alpha
         self.radii = radii
+        self.scale_factor = scale_factor
 
         # Load the point cloud
         self.pcd = o3d.io.read_point_cloud(self.ply_filepath)
@@ -134,6 +138,9 @@ class Mapping:
         # Mesh refinement -> increases resolution and improves smoothness
         mesh = mesh.subdivide_midpoint(number_of_iterations=1)
 
+        # Scale the mesh
+        mesh.scale(self.scale_factor, center=(0, 0, 0))
+
         return mesh
 
     def _visualiser(self, data):
@@ -148,13 +155,12 @@ class Mapping:
         # Add bounding boxes to the visualizer
         for frame_index, bbox_list in self.global_bboxes_data.items():
             for bbox in bbox_list:
-                print(f"BBox: {bbox}", flush=True)
-                points = [bbox[corner] for corner in range(4)]
+                points = [corner for corner in bbox]
+
                 line_set = o3d.geometry.LineSet(
                     points=o3d.utility.Vector3dVector(points),
                     lines=o3d.utility.Vector2iVector(self.lines)
                 )
-                print(f"Line Set: {line_set}")
                 render_option = vis.get_render_option()
                 render_option.line_width = 10.0
                 line_set.paint_uniform_color([1, 0, 0])
