@@ -94,7 +94,7 @@ class ProcessPose:
         extrinsics = np.eye(4)
         extrinsics[:3, :3] = rotation
         extrinsics[:3, 3] = translation
-        # extrinsics = np.linalg.inv(extrinsics)
+        extrinsics = np.linalg.inv(extrinsics)
 
         # Configure the 3D visualizer
         if self.display_3d:
@@ -147,32 +147,22 @@ class ProcessPose:
             # Generate 3D corners with z-values from median over bbox (x, y) range
             corners_3d = [self._depth_to_3d(int(x), int(y), rgbd_image, fx, fy, cx, cy) for x, y in scaled_corners]
 
-            # Map to nearest points in the point cloud (these are the actual coordinates)
-            # mapped_corners_3d = [self._map_to_nearest_point(corner, point_cloud_tree) for corner in corners_3d]
-
-            # Create 3d bbox for visualisation
-            corners_3d_top = [corner + np.array([0, 0, bbox_depth_buffer]) for corner in corners_3d]
-            corners_3d_bottom = [corner - np.array([0, 0, bbox_depth_buffer]) for corner in corners_3d]
-            visualise_corners_3d = corners_3d_top + corners_3d_bottom
-
             # Define lines based on corner points for a flat box
             lines = [
                 [0, 1], [1, 2], [2, 3], [3, 0], # bottom face
-                # [4, 5], [5, 6], [6, 7], [7, 4], # top face
-                # [0, 4], [1, 5], [2, 6], [3, 7]  # vertical edges
+                [4, 5], [5, 6], [6, 7], [7, 4], # top face
+                [0, 4], [1, 5], [2, 6], [3, 7]  # vertical edges
             ]
 
             # Get global coordinates
             global_corners = [self._transform_to_global(corner, pose_data) for corner in corners_3d]
             frame_global_bboxes.append(global_corners)
 
-            corners_3d_top = [corner + np.array([0, 0, bbox_depth_buffer]) for corner in global_corners]
-            corners_3d_bottom = [corner - np.array([0, 0, bbox_depth_buffer]) for corner in global_corners]
-            visualise_corners_3d = corners_3d_top + corners_3d_bottom
+            visualise_corners_3d = self._create_3d_bounding_box(global_corners, bbox_depth_buffer)
 
             # Create line set for bounding box
             line_set = o3d.geometry.LineSet(
-                points=o3d.utility.Vector3dVector(global_corners),
+                points=o3d.utility.Vector3dVector(visualise_corners_3d),
                 lines=o3d.utility.Vector2iVector(lines)
             )
 
@@ -187,7 +177,6 @@ class ProcessPose:
             print(f"\tScaled 2D Corners: {scaled_corners}")
             print(f"\tMedian Depth: {median_depth}")
             print(f"\t3D Corners before Mapping: {corners_3d}")
-            # print(f"\tMapped 3D Corners: {mapped_corners_3d}")
             print(f"\tGlobal 3D Coordinates: {global_corners}\n")
 
         if self.display_3d:
@@ -263,10 +252,42 @@ class ProcessPose:
         return np.array([X, Y, Z])
 
     @staticmethod
-    def _map_to_nearest_point(point, point_cloud_tree):
-        dist, idx = point_cloud_tree.query(point)
-        nearest_point = point_cloud_tree.data[idx]
-        return nearest_point
+    def _create_3d_bounding_box(global_corners, buffer_depth):
+        """
+        Create a 3D bounding box from 2D corners with a specified buffer depth.
+        
+        Parameters:
+            global_corners (list of np.array): List of 4 global 3D coordinates forming the 2D bounding box.
+            buffer_depth (float): Depth to extend the bounding box along its normal.
+        
+        Returns:
+            o3d.geometry.LineSet: LineSet object representing the 3D bounding box.
+        """
+        # Ensure we have exactly 4 corners
+        assert len(global_corners) == 4, "global_corners should contain exactly 4 points."
+
+        # Convert list of corners to numpy array
+        corners = np.array(global_corners)
+
+        # Compute the centroid of the bounding box
+        centroid = np.mean(corners, axis=0)
+
+        # Compute two vectors on the plane of the bounding box
+        vec1 = corners[1] - corners[0]
+        vec2 = corners[3] - corners[0]
+
+        # Compute the normal vector to the plane of the bounding box
+        normal = np.cross(vec1, vec2)
+        normal = normal / np.linalg.norm(normal)  # Normalize the normal vector
+
+        # Create 8 corners of the 3D bounding box
+        box_corners = []
+        for corner in corners:
+            box_corners.append(corner + buffer_depth * normal)
+        for corner in corners:
+            box_corners.append(corner - buffer_depth * normal)
+
+        return box_corners
 
     def _transform_to_global(self, local_point, pose):
         """
@@ -283,14 +304,9 @@ class ProcessPose:
         tx, ty, tz, qx, qy, qz, qw = pose
         translation = np.array([tx, ty, tz])
         rotation = R.from_quat([qx, qy, qz, qw])
-        transform = np.eye(4, 4)
-        transform[:3, :3] = rotation.as_matrix()
-        transform[:3, 3] = translation
-        transform = np.linalg.inv(transform)
-        local_point = np.array([*local_point, 1])
 
         # Apply rotation and translation to obtain the global coordinates
-        global_point = (transform @ local_point)[:3]
+        global_point = rotation.apply(local_point) + translation
         return global_point
 
 
