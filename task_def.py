@@ -97,17 +97,19 @@ def map_detected_objects(pose_path, dataset, predictions, img_size, depth_width,
 
     return global_bboxes_data, pose_df
 
-def plot_map(global_bboxes_data, eps, min_points, ply_path, preprocess_point_cloud):
+def plot_map(global_bboxes_data, pose_df, eps, min_points, ply_path, preprocess_point_cloud, overlay_pose):
     # Map the bounding box information to the global 3D map
-    print("Generating 3D Map...")
+    print("Generating 3D Map...", flush=True)
     mapper = Mapping(
         global_bboxes_data=global_bboxes_data,
+        pose=pose_df,
         eps=eps,
         min_points=min_points,
         ply_filepath=ply_path,
         preprocess_point_cloud=preprocess_point_cloud,
+        overlay_pose=overlay_pose,
     )
-    mapper.make_point_cloud()
+    mapper.make_mesh()
 
     # Garbage collection
     del mapper
@@ -130,6 +132,7 @@ if __name__ == '__main__':
     eps = float(config['mapping']['eps'])
     min_points = config.getint('mapping', 'min_points')
     preprocess_point_cloud = config.getboolean('mapping', 'preprocess_point_cloud')
+    overlay_pose = config.getboolean('mapping', 'overlay_pose')
     depth_width = config.getint('mapping', 'depth_width')
     depth_height = config.getint('mapping', 'depth_height')
 
@@ -160,7 +163,10 @@ if __name__ == '__main__':
     dataset = ImageDataset(image_dir=image_dir, depth_image_dir=depth_image_dir, calibration_dir=calibration_dir, img_size=img_size, processing=False)
     global_bboxes_data, pose_df = map_detected_objects(pose_path, dataset, predictions, img_size, depth_width, depth_height)
 
-    # # Save as pickle file and load later to use in another script
+    # Plot 3D Global Map (RAM runs out so save as pickle file and run independently instead)
+    # plot_map(global_bboxes_data, pose_df, eps, min_points, ply_path, preprocess_point_cloud, overlay_pose)
+
+    # Save as pickle file and load later to use in another script
     data_to_save["global_bboxes_data"] = global_bboxes_data
     data_to_save["pose_df"] = pose_df
 

@@ -186,8 +186,8 @@ if __name__ == '__main__':
         eps=eps,
         min_points=min_points,
         ply_filepath=r"../common/data/gold_std/cloud.ply",
-        preprocess_point_cloud=False,
-        overlay_pose=False,
+        preprocess_point_cloud=True,
+        overlay_pose=True,
     )
 
     # Either make a point cloud or a mesh
