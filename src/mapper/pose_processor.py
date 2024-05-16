@@ -27,6 +27,7 @@ class ProcessPose:
         depth_width,
         depth_height,
         display_rgbd=False,
+        display_3d=False,
         scale_depth=100,
     ):
         """
@@ -39,7 +40,7 @@ class ProcessPose:
             img_size (int): Size of the images.
             depth_width (int): Width of the depth images.
             depth_height (int): Height of the depth images.
-            depth_scale (int): Float, scale factor for depth (e.g., 1000.0 if depth is in millimeters and you need meters)
+            depth_scale (int): Float, scale factor for depth (e.g., 100.0 if depth is in centimeters and you need meters)
         """
         self.pose = pose
         self.dataset = dataset
@@ -49,6 +50,7 @@ class ProcessPose:
         self.depth_width = depth_width
         self.depth_height = depth_height
         self.display_rgbd = display_rgbd
+        self.display_3d = display_3d
         self.scale_depth = scale_depth
 
     def get_global_coordinates(self):
@@ -65,8 +67,7 @@ class ProcessPose:
                 cv2.destroyAllWindows()
 
             # Get pose information for the image
-            pose_data = self.pose.iloc[frame_index][1:].to_numpy()
-            print(f"Pose: {pose_data}")
+            pose_data = self.pose.iloc[frame_index][1:-1].to_numpy()
 
             frame_global_bboxes = self._3d_processing(pose_data, rgb_image_pil, depth_image_cv, bboxes, camera_intrinsics)
             global_bboxes[frame_index] = frame_global_bboxes
@@ -87,8 +88,9 @@ class ProcessPose:
 
     def _3d_processing(self, pose_data, rgb_image_pil, depth_image_cv, bboxes, camera_intrinsics):
         # Configure the 3D visualizer
-        vis = o3d.visualization.Visualizer()
-        vis.create_window()
+        if self.display_3d:
+            vis = o3d.visualization.Visualizer()
+            vis.create_window()
 
         rgb_image_o3d = o3d.geometry.Image(np.array(rgb_image_pil))
         depth_image_o3d = o3d.geometry.Image(np.array(depth_image_cv).astype(np.uint16))
@@ -109,7 +111,8 @@ class ProcessPose:
             rgbd_image,
             intrinsics
         )
-        vis.add_geometry(point_cloud)
+        if self.display_3d:
+            vis.add_geometry(point_cloud)
 
         # The 3D corners are refined by mapping them to the nearest points in the point cloud using the KDTree
         point_cloud_tree = KDTree(np.asarray(point_cloud.points))
@@ -156,9 +159,10 @@ class ProcessPose:
             )
 
             # Set colors (e.g., red) for each line
-            vis.get_render_option().line_width = 2
-            line_set.paint_uniform_color([1, 0, 0])
-            vis.add_geometry(line_set)
+            if self.display_3d:
+                vis.get_render_option().line_width = 2
+                line_set.paint_uniform_color([1, 0, 0])
+                vis.add_geometry(line_set)
 
             # Get global coordinates
             global_corners = [self._transform_to_global(corner, pose_data) for corner in mapped_corners_3d]
@@ -172,11 +176,12 @@ class ProcessPose:
             print(f"\tMapped 3D Corners: {mapped_corners_3d}")
             print(f"\tGlobal 3D Coordinates: {global_corners}\n")
 
-        # Visualize
-        vis.poll_events()
-        vis.update_renderer()
-        vis.run()
-        vis.destroy_window()
+        if self.display_3d:
+            # Visualize
+            vis.poll_events()
+            vis.update_renderer()
+            vis.run()
+            vis.destroy_window()
 
         return frame_global_bboxes
 
@@ -261,6 +266,7 @@ class ProcessPose:
         """
         # Extract the translation and quaternion rotation from the pose
         tx, ty, tz, qx, qy, qz, qw = pose
+        print(tx, ty, tz, qx, qy, qz, qw)
         translation = np.array([tx, ty, tz])
         rotation = R.from_quat([qx, qy, qz, qw])
 
@@ -309,5 +315,6 @@ if __name__ == '__main__':
         depth_width=depth_width,
         depth_height=depth_height,
         display_rgbd=False,
+        display_3d=True,
     )
     pose_processing.get_global_coordinates()

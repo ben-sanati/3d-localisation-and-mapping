@@ -54,7 +54,7 @@ def detect_signs(dataloader, img_size, batch_size, conf_thresh, iou_thresh):
         iou_thresh=iou_thresh,
         img_size=img_size,
         batch_size=batch_size,
-        view_img=True,
+        view_img=False,
         save_img="src/common/data/gold_std/processed_img",
     )
 
@@ -69,7 +69,7 @@ def detect_signs(dataloader, img_size, batch_size, conf_thresh, iou_thresh):
 
     return predictions
 
-def map_detected_objects(pose_path, dataset, predictions, img_size, depth_width, depth_height):
+def map_detected_objects(pose_path, dataset, predictions, img_size, depth_width, depth_height, display_3d):
     # Get the node information from the table
     print("Extracting Pose Information...", flush=True)
     extractor = PoseDataExtractor(pose_path)
@@ -87,6 +87,7 @@ def map_detected_objects(pose_path, dataset, predictions, img_size, depth_width,
         img_size=img_size,
         depth_width=depth_width,
         depth_height=depth_height,
+        display_3d=display_3d,
     )
     global_bboxes_data = pose_processing.get_global_coordinates()
 
@@ -135,6 +136,7 @@ if __name__ == '__main__':
     overlay_pose = config.getboolean('mapping', 'overlay_pose')
     depth_width = config.getint('mapping', 'depth_width')
     depth_height = config.getint('mapping', 'depth_height')
+    display_3d = config.getboolean('mapping', 'display_3d')
 
     # Access paths from the 'paths' section
     db_path = config['paths']['db_path']
@@ -161,7 +163,7 @@ if __name__ == '__main__':
 
     # Map detected objects
     dataset = ImageDataset(image_dir=image_dir, depth_image_dir=depth_image_dir, calibration_dir=calibration_dir, img_size=img_size, processing=False)
-    global_bboxes_data, pose_df = map_detected_objects(pose_path, dataset, predictions, img_size, depth_width, depth_height)
+    global_bboxes_data, pose_df = map_detected_objects(pose_path, dataset, predictions, img_size, depth_width, depth_height, display_3d)
 
     # Plot 3D Global Map (RAM runs out so save as pickle file and run independently instead)
     # plot_map(global_bboxes_data, pose_df, eps, min_points, ply_path, preprocess_point_cloud, overlay_pose)

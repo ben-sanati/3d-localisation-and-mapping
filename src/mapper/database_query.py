@@ -13,7 +13,7 @@ class PoseDataExtractor:
 
     def fetch_data(self):
         df = pd.read_csv(self.pose_path, sep=' ', skiprows=1, header=None)
-        df.columns = ['timestamp', 'tx', 'ty', 'tz', 'qx', 'qy', 'qz', 'qw']
+        df.columns = ['timestamp', 'tx', 'ty', 'tz', 'qx', 'qy', 'qz', 'qw', 'id']
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
         return df
 
@@ -60,7 +60,7 @@ class PoseDataExtractor:
 
 
 if __name__ == "__main__":
-    pose_path = "../common/data/gold_std/poses.txt"
+    pose_path = "../common/data/gold_std/poses_id.txt"
 
     extractor = PoseDataExtractor(pose_path)
     df = extractor.fetch_data()
