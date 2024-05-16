@@ -27,7 +27,7 @@ class ProcessPose:
         depth_width,
         depth_height,
         display_rgbd=False,
-        scale_depth=1000,
+        scale_depth=100,
     ):
         """
         Initializes the ProcessPose class with pose data, depth images, and bounding box coordinates.
@@ -52,7 +52,8 @@ class ProcessPose:
         self.scale_depth = scale_depth
 
     def get_global_coordinates(self):
-        for idx, (frame_index, bboxes) in enumerate(self.bbox_coordinates.items()):
+        global_bboxes = {}
+        for frame_index, bboxes in self.bbox_coordinates.items():
             # Acquire images
             rgb_image_pil, rgb_image_cv, depth_image_cv, depth_image_norm_cv, camera_intrinsics = self._parse_images(frame_index)
 
@@ -63,8 +64,14 @@ class ProcessPose:
                 cv2.waitKey(0)  # Wait for key press to proceed to the next image
                 cv2.destroyAllWindows()
 
-            self._3d_processing(rgb_image_pil, depth_image_cv, bboxes, camera_intrinsics)
-            break
+            # Get pose information for the image
+            pose_data = self.pose.iloc[frame_index][1:].to_numpy()
+            print(f"Pose: {pose_data}")
+
+            frame_global_bboxes = self._3d_processing(pose_data, rgb_image_pil, depth_image_cv, bboxes, camera_intrinsics)
+            global_bboxes[frame_index] = frame_global_bboxes
+
+        return global_bboxes
 
     def _parse_images(self, frame_index):
         # Acquire images
@@ -78,7 +85,7 @@ class ProcessPose:
 
         return rgb_image_pil, rgb_image_cv, depth_image_cv, depth_image_norm_cv, camera_intrinsics
 
-    def _3d_processing(self, rgb_image_pil, depth_image_cv, bboxes, camera_intrinsics):
+    def _3d_processing(self, pose_data, rgb_image_pil, depth_image_cv, bboxes, camera_intrinsics):
         # Configure the 3D visualizer
         vis = o3d.visualization.Visualizer()
         vis.create_window()
@@ -107,6 +114,9 @@ class ProcessPose:
         # The 3D corners are refined by mapping them to the nearest points in the point cloud using the KDTree
         point_cloud_tree = KDTree(np.asarray(point_cloud.points))
 
+        # Store global coordinates
+        frame_global_bboxes = []
+
         for bbox in bboxes:
             corners = [
                 (bbox[0], bbox[1]), (bbox[0], bbox[3]),
@@ -118,19 +128,17 @@ class ProcessPose:
 
             # Calculate the 3d bbox coordinates based over the median depth values within the bbox
             median_depth = self._calculate_median_depth(depth_image_cv, scaled_corners)
-            depth_buffer = median_depth / (self.scale_depth * 100)
+            bbox_depth_buffer = median_depth / (self.scale_depth * 100)
 
-            # Generate 3D corners with z-values from q1 to q3 depth
+            # Generate 3D corners with z-values from median over bbox (x, y) range
             corners_3d = [self._depth_to_3d(int(x), int(y), median_depth, fx, fy, cx, cy) for x, y in scaled_corners]
 
             # Map to nearest points in the point cloud (these are the actual coordinates)
             mapped_corners_3d = [self._map_to_nearest_point(corner, point_cloud_tree) for corner in corners_3d]
 
             # Create 3d bbox for visualisation
-            corners_3d_top = [corner + np.array([0, 0, depth_buffer]) for corner in mapped_corners_3d]
-            corners_3d_bottom = [corner - np.array([0, 0, depth_buffer]) for corner in mapped_corners_3d]
-
-            print(f"3D Corners: {mapped_corners_3d}", flush=True)
+            corners_3d_top = [corner + np.array([0, 0, bbox_depth_buffer]) for corner in mapped_corners_3d]
+            corners_3d_bottom = [corner - np.array([0, 0, bbox_depth_buffer]) for corner in mapped_corners_3d]
 
             # Define lines based on corner points for a flat box
             lines = [
@@ -152,21 +160,25 @@ class ProcessPose:
             line_set.paint_uniform_color([1, 0, 0])
             vis.add_geometry(line_set)
 
-            # Add text above the bounding box
-            text = "BoundingBox"
-            text_mesh = o3d.t.geometry.TriangleMesh.create_text(text, depth=0.1).to_legacy()
-            text_mesh.paint_uniform_color([1, 0, 0])
+            # Get global coordinates
+            global_corners = [self._transform_to_global(corner, pose_data) for corner in mapped_corners_3d]
+            frame_global_bboxes.append(global_corners)
 
-            # Position the text mesh at the top-left corner above the bounding box
-            location = mapped_corners_3d[0]
-            text_mesh.transform([[0.0005, 0, 0, location[0]], [0, 0.0005, 0, location[1]], [0, 0, 0.0005, location[2]], [0, 0, 0, 1]])
-            vis.add_geometry(text_mesh)
+            # Debugging prints
+            print(f"\tOriginal 2D Corners: {corners}")
+            print(f"\tScaled 2D Corners: {scaled_corners}")
+            print(f"\tMedian Depth: {median_depth}")
+            print(f"\t3D Corners before Mapping: {corners_3d}")
+            print(f"\tMapped 3D Corners: {mapped_corners_3d}")
+            print(f"\tGlobal 3D Coordinates: {global_corners}\n")
 
         # Visualize
         vis.poll_events()
         vis.update_renderer()
         vis.run()
         vis.destroy_window()
+
+        return frame_global_bboxes
 
     @staticmethod
     def _scale_bounding_box(corners, original_size, new_size):
@@ -258,7 +270,7 @@ class ProcessPose:
 
 
 if __name__ == '__main__':
-    # TODO: deal with 3D single image accuracy
+    # TODO: define a z coordinate base based on the mean value of the depths (that is not 0) to deal with 0 value depths and processing images on windows
     os.chdir(r'../..')
     config_path = r"src/common/configs/variables.cfg"
     config = configparser.ConfigParser()
@@ -296,6 +308,6 @@ if __name__ == '__main__':
         img_size=img_size,
         depth_width=depth_width,
         depth_height=depth_height,
-        display_rgbd=True,
+        display_rgbd=False,
     )
     pose_processing.get_global_coordinates()

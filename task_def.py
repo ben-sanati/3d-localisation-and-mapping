@@ -90,14 +90,10 @@ def map_detected_objects(pose_path, dataset, predictions, img_size, depth_width,
     )
     global_bboxes_data = pose_processing.get_global_coordinates()
 
-    # for frame_index, bbox_list in global_bboxes_data.items():
-    #     for bbox in bbox_list:
-    #         print(f"{frame_index}: {bbox}")
-
-    # # Garbage collection
-    # del pose_processing
-    # gc.collect()
-    # print("Pose Processed!", flush=True)
+    # Garbage collection
+    del pose_processing
+    gc.collect()
+    print("Pose Processed!", flush=True)
 
     return global_bboxes_data, pose_df
 

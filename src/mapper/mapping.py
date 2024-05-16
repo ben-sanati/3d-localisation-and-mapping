@@ -5,6 +5,7 @@ import psutil
 import numpy as np
 import open3d as o3d
 import matplotlib.pyplot as plt
+from scipy.spatial.transform import Rotation as R
 
 sys.path.insert(0, r'../..')
 
@@ -33,7 +34,9 @@ class Mapping:
         self.global_bboxes_data = global_bboxes_data
         self.preprocess_point_cloud = preprocess_point_cloud
 
-        self.lines = [[0, 1], [1, 2], [2, 3], [3, 0]]
+        self.lines = [
+            [0, 1], [1, 2], [2, 3], [3, 0],
+        ]
 
         # Mesh data
         self.radius = radius
@@ -139,30 +142,28 @@ class Mapping:
         vis.create_window()
 
         # Make mesh/point_cloud
+        print(data)
         vis.add_geometry(data)
 
-        # # Add bounding boxes to the visualizer
-        # for frame_index, bbox_list in self.global_bboxes_data.items():
-        #     for bbox in bbox_list:
-        #         print(f"BBox: {bbox}", flush=True)
-        #         points = [bbox[corner] for corner in range(4)]
-        #         line_set = o3d.geometry.LineSet(
-        #             points=o3d.utility.Vector3dVector(points),
-        #             lines=o3d.utility.Vector2iVector(self.lines)
-        #         )
-        #         print(f"Line Set: {line_set}")
-        #         render_option = vis.get_render_option()
-        #         render_option.line_width = 10.0
+        # Add bounding boxes to the visualizer
+        for frame_index, bbox_list in self.global_bboxes_data.items():
+            for bbox in bbox_list:
+                print(f"BBox: {bbox}", flush=True)
+                points = [bbox[corner] for corner in range(4)]
+                line_set = o3d.geometry.LineSet(
+                    points=o3d.utility.Vector3dVector(points),
+                    lines=o3d.utility.Vector2iVector(self.lines)
+                )
+                print(f"Line Set: {line_set}")
+                render_option = vis.get_render_option()
+                render_option.line_width = 10.0
+                line_set.paint_uniform_color([1, 0, 0])
+                vis.add_geometry(line_set)
 
         if self.overlay_pose:
             pose_point_cloud = o3d.geometry.PointCloud()
             pose_point_cloud.points = o3d.utility.Vector3dVector(self.pose[['tx', 'ty', 'tz']].values)
             vis.add_geometry(pose_point_cloud)
-            # vis.add_geometry(line_set)
-        else:
-            # o3d.visualization.draw_geometries([data, line_set])
-            line_set = None
-            vis.add_geometry(line_set)
 
         # Run the visualizer
         vis.run()
@@ -185,7 +186,7 @@ if __name__ == '__main__':
         eps=eps,
         min_points=min_points,
         ply_filepath=r"../common/data/gold_std/cloud.ply",
-        preprocess_point_cloud=True,
+        preprocess_point_cloud=False,
         overlay_pose=False,
     )
 
