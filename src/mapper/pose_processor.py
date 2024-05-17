@@ -93,9 +93,6 @@ class ProcessPose:
         translation = np.array([tx, ty, tz])
         rotation = R.from_quat([qx, qy, qz, qw]).as_matrix()
 
-        # Invert the z-axis of the rotation matrix
-        rotation[:, 1:] *= -1
-
         extrinsics = np.eye(4)
         extrinsics[:3, :3] = rotation
         extrinsics[:3, 3] = translation
@@ -185,6 +182,10 @@ class ProcessPose:
 
                 # Draw camera frustum
                 self._draw_camera_frustum(vis, translation, rotation, fx, fy, cx, cy, self.depth_width, self.depth_height)
+
+            print(position[0])
+            axis_mesh = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.3, origin=position[0])
+            vis.add_geometry(axis_mesh)
 
             # Debugging prints
             print(f"\tOriginal 2D Corners: {corners}")
