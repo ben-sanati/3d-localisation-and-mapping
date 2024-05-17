@@ -88,7 +88,14 @@ class ProcessPose:
         return rgb_image_pil, rgb_image_cv, depth_image_cv, depth_image_norm_cv, camera_intrinsics
 
     def _3d_processing(self, pose_data, rgb_image_pil, depth_image_cv, bboxes, camera_intrinsics):
-        # calculate extrinsics
+        # Get camera intrinsics
+        depth_to_rgb_scale = camera_intrinsics["image_width"] / self.depth_width
+        fx = camera_intrinsics["fx"] / depth_to_rgb_scale
+        fy = camera_intrinsics["fy"] / depth_to_rgb_scale
+        cx = camera_intrinsics["cx"] / depth_to_rgb_scale
+        cy = camera_intrinsics["cy"] / depth_to_rgb_scale
+
+        # Calculate extrinsics
         tx, ty, tz, qx, qy, qz, qw = pose_data
         translation = np.array([tx, ty, tz])
         rotation = R.from_quat([qx, qy, qz, qw]).as_matrix()
@@ -99,10 +106,11 @@ class ProcessPose:
         extrinsics = np.linalg.inv(extrinsics)
 
         # Configure the 3D visualizer
+        vis = o3d.visualization.Visualizer()
         if self.display_3d:
-            vis = o3d.visualization.Visualizer()
             vis.create_window()
 
+        frustum = self._get_camera_frustum(vis, translation, rotation, fx, fy, cx, cy, self.depth_width, self.depth_height)
         rgb_image_o3d = o3d.geometry.Image(np.array(rgb_image_pil))
         depth_image_o3d = o3d.geometry.Image(np.array(depth_image_cv).astype(np.uint16))
         rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(
@@ -113,11 +121,6 @@ class ProcessPose:
             convert_rgb_to_intensity=False,
         )
 
-        depth_to_rgb_scale = camera_intrinsics["image_width"] / self.depth_width
-        fx = camera_intrinsics["fx"] / depth_to_rgb_scale
-        fy = camera_intrinsics["fy"] / depth_to_rgb_scale
-        cx = camera_intrinsics["cx"] / depth_to_rgb_scale
-        cy = camera_intrinsics["cy"] / depth_to_rgb_scale
         intrinsics = o3d.camera.PinholeCameraIntrinsic(720, 960, fx, fy, cx, cy)
         point_cloud = o3d.geometry.PointCloud.create_from_rgbd_image(
             rgbd_image,
@@ -125,7 +128,7 @@ class ProcessPose:
             extrinsics,
         )
         if self.display_3d:
-            vis.add_geometry(point_cloud)
+            vis.add_geometry(point_cloud)      
 
         # The 3D corners are refined by mapping them to the nearest points in the point cloud using the KDTree
         point_cloud_tree = KDTree(np.asarray(point_cloud.points))
@@ -181,11 +184,10 @@ class ProcessPose:
                 vis.add_geometry(pose_point_cloud)
 
                 # Draw camera frustum
-                self._draw_camera_frustum(vis, translation, rotation, fx, fy, cx, cy, self.depth_width, self.depth_height)
+                vis.add_geometry(frustum)
 
-            print(position[0])
-            axis_mesh = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.3, origin=position[0])
-            vis.add_geometry(axis_mesh)
+                axis_mesh = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.3, origin=position[0])
+                vis.add_geometry(axis_mesh)
 
             # Debugging prints
             print(f"\tOriginal 2D Corners: {corners}")
@@ -330,7 +332,7 @@ class ProcessPose:
         return global_point
 
     @staticmethod
-    def _draw_camera_frustum(vis, position, rotation, fx, fy, cx, cy, width, height, length=0.1):
+    def _get_camera_frustum(vis, position, rotation, fx, fy, cx, cy, width, height, length=0.1):
         """
         Draws the camera frustum in the 3D visualization.
 
@@ -381,7 +383,24 @@ class ProcessPose:
         )
         frustum_line_set.paint_uniform_color([0, 1, 0])  # Green color for the frustum
 
-        vis.add_geometry(frustum_line_set)
+        return frustum_line_set
+
+    @staticmethod
+    def _compute_frustum_normal(frustum_corners):
+        # Assuming frustum_corners is a list of 4 corner points of the frustum face
+        # Select three non-collinear points from the frustum corners
+        point1, point2, point3 = frustum_corners[:3]
+
+        # Compute two vectors on the frustum face
+        vec1 = point2 - point1
+        vec2 = point3 - point1
+
+        # Compute the cross product of the vectors to get the normal vector
+        normal = np.cross(vec1, vec2)
+        # Normalize the normal vector
+        normal /= np.linalg.norm(normal)
+
+        return normal
 
 
 if __name__ == '__main__':
