@@ -176,9 +176,36 @@ class Mapping:
             pose_point_cloud.points = o3d.utility.Vector3dVector(self.pose[['tx', 'ty', 'tz']].values)
             vis.add_geometry(pose_point_cloud)
 
+            # Get directions
+            directions = np.array([self._quaternion_to_rotation_matrix(q)[0] for q in self.pose[['qw', 'qx', 'qy', 'qz']].to_numpy()])
+
+            lines = []
+            line_colors = []
+            for i, (point, direction) in enumerate(zip(pose_point_cloud.points, directions)):
+                lines.append([i, i + len(pose_point_cloud.points)])
+                if i == 0:
+                    line_colors.append([1, 0, 0])
+                else:
+                    line_colors.append([0, 1, 0])
+
+            # Create line set geometry
+            pose_line_set = o3d.geometry.LineSet(
+                points=o3d.utility.Vector3dVector(np.vstack((pose_point_cloud.points, pose_point_cloud.points + 0.4 * directions))),
+                lines=o3d.utility.Vector2iVector(lines),
+            )
+            pose_line_set.colors = o3d.utility.Vector3dVector(line_colors)
+            vis.add_geometry(pose_line_set)
+
         # Run the visualizer
         vis.run()
         vis.destroy_window()
+
+    @staticmethod
+    def _quaternion_to_rotation_matrix(q):
+        qw, qx, qy, qz = q
+        rotation = R.from_quat([qx, qy, qz, qw]).as_matrix()
+        rotation[:, 1:] *= -1
+        return rotation
 
 
 if __name__ == '__main__':

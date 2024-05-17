@@ -2,6 +2,7 @@ import pickle
 import pandas as pd
 import numpy as np
 import open3d as o3d
+from scipy.spatial.transform import Rotation as R
 
 
 class PoseDataExtractor:
@@ -13,7 +14,7 @@ class PoseDataExtractor:
 
     def fetch_data(self):
         df = pd.read_csv(self.pose_path, sep=' ', skiprows=1, header=None)
-        df.columns = ['timestamp', 'tx', 'ty', 'tz', 'qx', 'qy', 'qz', 'qw', 'id']
+        df.columns = ['timestamp', 'tx', 'ty', 'tz', 'qx', 'qy', 'qz', 'qw']
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
         return df
 
@@ -52,15 +53,12 @@ class PoseDataExtractor:
     @staticmethod
     def _quaternion_to_rotation_matrix(q):
         qw, qx, qy, qz = q
-        return np.array([
-            [1 - 2*qy**2 - 2*qz**2, 2*qx*qy - 2*qz*qw, 2*qx*qz + 2*qy*qw],
-            [2*qx*qy + 2*qz*qw, 1 - 2*qx**2 - 2*qz**2, 2*qy*qz - 2*qx*qw],
-            [2*qx*qz - 2*qy*qw, 2*qy*qz + 2*qx*qw, 1 - 2*qx**2 - 2*qy**2]
-        ])
+        rotation = R.from_quat([qx, qy, qz, qw])
+        return rotation.as_matrix()
 
 
 if __name__ == "__main__":
-    pose_path = "../common/data/gold_std/poses_id.txt"
+    pose_path = "../common/data/gold_std/poses_id_new.txt"
 
     extractor = PoseDataExtractor(pose_path)
     df = extractor.fetch_data()

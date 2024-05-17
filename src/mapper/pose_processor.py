@@ -67,11 +67,11 @@ class ProcessPose:
                 cv2.destroyAllWindows()
 
             # Get pose information for the image
-            pose_data = self.pose.iloc[frame_index][1:-1].to_numpy()
-            print(f"{frame_index}: {pose_data}")
+            pose_data = self.pose.iloc[frame_index][1:].to_numpy()
 
             frame_global_bboxes = self._3d_processing(pose_data, rgb_image_pil, depth_image_cv, bboxes, camera_intrinsics)
             global_bboxes[frame_index] = frame_global_bboxes
+            break
 
         return global_bboxes
 
@@ -92,6 +92,10 @@ class ProcessPose:
         tx, ty, tz, qx, qy, qz, qw = pose_data
         translation = np.array([tx, ty, tz])
         rotation = R.from_quat([qx, qy, qz, qw]).as_matrix()
+
+        # Invert the z-axis of the rotation matrix
+        rotation[:, 1:] *= -1
+
         extrinsics = np.eye(4)
         extrinsics[:3, :3] = rotation
         extrinsics[:3, 3] = translation
@@ -117,7 +121,7 @@ class ProcessPose:
         fy = camera_intrinsics["fy"] / depth_to_rgb_scale
         cx = camera_intrinsics["cx"] / depth_to_rgb_scale
         cy = camera_intrinsics["cy"] / depth_to_rgb_scale
-        intrinsics = o3d.camera.PinholeCameraIntrinsic(self.depth_width, self.depth_height, fx, fy, cx, cy)
+        intrinsics = o3d.camera.PinholeCameraIntrinsic(720, 960, fx, fy, cx, cy)
         point_cloud = o3d.geometry.PointCloud.create_from_rgbd_image(
             rgbd_image,
             intrinsics,
@@ -145,10 +149,6 @@ class ProcessPose:
 
             # Scale bbox coordinates from initial image size to depth image width and height
             scaled_corners = self._scale_bounding_box(corners, (self.img_size, self.img_size), (self.depth_width, self.depth_height))
-
-            # # Calculate the 3d bbox coordinates based over the median depth values within the bbox
-            # median_depth = self._calculate_median_depth(depth_image_cv, scaled_corners)
-            # bbox_depth_buffer = median_depth / (self.scale_depth * 30)
             bbox_depth_buffer = 0.06
 
             # Generate 3D corners with z-values from median over bbox (x, y) range
@@ -172,11 +172,19 @@ class ProcessPose:
                 lines=o3d.utility.Vector2iVector(lines)
             )
 
-            # Set colors (e.g., red) for each line
             if self.display_3d:
-                vis.get_render_option().line_width = 2
+                # Overlay bboxes
                 line_set.paint_uniform_color([1, 0, 0])
                 vis.add_geometry(line_set)
+
+                # Overlay pose
+                pose_point_cloud = o3d.geometry.PointCloud()
+                position = np.vstack((tx, ty, tz)).T
+                pose_point_cloud.points = o3d.utility.Vector3dVector(position)
+                vis.add_geometry(pose_point_cloud)
+
+                # Draw camera frustum
+                self._draw_camera_frustum(vis, translation, rotation, fx, fy, cx, cy, self.depth_width, self.depth_height)
 
             # Debugging prints
             print(f"\tOriginal 2D Corners: {corners}")
@@ -247,7 +255,7 @@ class ProcessPose:
         """
         # Extract the depth value at (x, y) (rtabmap uses mm by default)
         depth_image = np.asarray(rgbd_image.depth)
-        Z = depth_image[y, x] # / self.scale_depth
+        Z = depth_image[y, x]
 
         # Convert (x, y) coordinates into 3D space based on camera intrinsic parameters
         X = (x - cx) * Z / fx
@@ -308,11 +316,71 @@ class ProcessPose:
         # Extract the translation and quaternion rotation from the pose
         tx, ty, tz, qx, qy, qz, qw = pose
         translation = np.array([tx, ty, tz])
-        rotation = R.from_quat([qx, qy, qz, qw])
+        rotation = R.from_quat([qx, qy, qz, qw]).as_matrix()
+
+        transformation = np.eye(4)
+        transformation[:3, :3] = rotation
+        transformation[:3, 3] = translation
+
+        local_point = np.array([(*local_point, 1)])
 
         # Apply rotation and translation to obtain the global coordinates
-        global_point = rotation.apply(local_point) + translation
+        global_point = (transformation @ local_point.T)[:3, 0]
         return global_point
+
+    @staticmethod
+    def _draw_camera_frustum(vis, position, rotation, fx, fy, cx, cy, width, height, length=0.1):
+        """
+        Draws the camera frustum in the 3D visualization.
+
+        Parameters:
+            vis (open3d.visualization.Visualizer): The Open3D visualizer.
+            position (np.array): The camera position (tx, ty, tz).
+            rotation (np.array): The camera rotation matrix (3x3).
+            fx (float): Focal length in x direction.
+            fy (float): Focal length in y direction.
+            cx (float): Principal point x-coordinate.
+            cy (float): Principal point y-coordinate.
+            width (int): Image width.
+            height (int): Image height.
+            length (float): Length of the frustum (default: 0.1).
+        """
+        # Compute the frustum's corner points in the camera coordinate frame
+        near_plane = 0.1  # Near plane distance
+        far_plane = near_plane + length  # Far plane distance
+        aspect_ratio = width / height
+
+        # Far plane dimensions
+        far_height = 2 * far_plane * np.tan(np.arctan2(height / 2.0, fy))
+        far_width = far_height * aspect_ratio
+
+        # Define frustum corner points in the camera coordinate frame
+        far_tl = np.array([-far_width / 2, far_height / 2, -far_plane])
+        far_tr = np.array([far_width / 2, far_height / 2, -far_plane])
+        far_bl = np.array([-far_width / 2, -far_height / 2, -far_plane])
+        far_br = np.array([far_width / 2, -far_height / 2, -far_plane])
+
+        # Transform frustum corner points to the global coordinate frame
+        frustum_points = [far_tl, far_tr, far_bl, far_br]
+        frustum_points = [rotation @ point + position for point in frustum_points]
+
+        # Add the camera position to the points
+        frustum_points.append(position)
+
+        # Define frustum lines connecting the camera position to the four corners of the far plane
+        frustum_lines = [
+            [4, 0], [4, 1], [4, 2], [4, 3],  # Lines from camera position to far plane corners
+            [0, 1], [1, 3], [3, 2], [2, 0]   # Far plane edges
+        ]
+
+        # Create LineSet for the frustum
+        frustum_line_set = o3d.geometry.LineSet(
+            points=o3d.utility.Vector3dVector(frustum_points),
+            lines=o3d.utility.Vector2iVector(frustum_lines)
+        )
+        frustum_line_set.paint_uniform_color([0, 1, 0])  # Green color for the frustum
+
+        vis.add_geometry(frustum_line_set)
 
 
 if __name__ == '__main__':
