@@ -121,7 +121,8 @@ class ObjectDetector(nn.Module):
 
                 # Update progress bar
                 loop.set_description(f"Image [{idx + 1}/{len(dataloader)}]")
-                break
+                if idx == 10:
+                    break
 
         return predictions
 

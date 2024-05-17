@@ -68,6 +68,7 @@ class ProcessPose:
 
             # Get pose information for the image
             pose_data = self.pose.iloc[frame_index][1:-1].to_numpy()
+            print(f"{frame_index}: {pose_data}")
 
             frame_global_bboxes = self._3d_processing(pose_data, rgb_image_pil, depth_image_cv, bboxes, camera_intrinsics)
             global_bboxes[frame_index] = frame_global_bboxes
@@ -87,7 +88,7 @@ class ProcessPose:
         return rgb_image_pil, rgb_image_cv, depth_image_cv, depth_image_norm_cv, camera_intrinsics
 
     def _3d_processing(self, pose_data, rgb_image_pil, depth_image_cv, bboxes, camera_intrinsics):
-        # calculate extrinsics        
+        # calculate extrinsics
         tx, ty, tz, qx, qy, qz, qw = pose_data
         translation = np.array([tx, ty, tz])
         rotation = R.from_quat([qx, qy, qz, qw]).as_matrix()
@@ -132,17 +133,23 @@ class ProcessPose:
         frame_global_bboxes = []
 
         for bbox in bboxes:
+            # Define limits to bbox
+            coordinates = np.array(bbox[:4])
+            coordinates[coordinates >= self.img_size] = self.img_size - 0.1
+
+            # Define the 2D bbox in 3D space
             corners = [
-                (bbox[0], bbox[1]), (bbox[0], bbox[3]),
-                (bbox[2], bbox[3]), (bbox[2], bbox[1])
+                (coordinates[0], coordinates[1]), (coordinates[0], coordinates[3]),
+                (coordinates[2], coordinates[3]), (coordinates[2], coordinates[1])
             ]
 
             # Scale bbox coordinates from initial image size to depth image width and height
-            scaled_corners = self._scale_bounding_box(corners, (self.img_size, self.img_size), (self.depth_width - 1, self.depth_height - 1))
+            scaled_corners = self._scale_bounding_box(corners, (self.img_size, self.img_size), (self.depth_width, self.depth_height))
 
-            # Calculate the 3d bbox coordinates based over the median depth values within the bbox
-            median_depth = self._calculate_median_depth(depth_image_cv, scaled_corners)
-            bbox_depth_buffer = median_depth / (self.scale_depth * 30)
+            # # Calculate the 3d bbox coordinates based over the median depth values within the bbox
+            # median_depth = self._calculate_median_depth(depth_image_cv, scaled_corners)
+            # bbox_depth_buffer = median_depth / (self.scale_depth * 30)
+            bbox_depth_buffer = 0.06
 
             # Generate 3D corners with z-values from median over bbox (x, y) range
             corners_3d = [self._depth_to_3d(int(x), int(y), rgbd_image, fx, fy, cx, cy) for x, y in scaled_corners]
@@ -154,11 +161,10 @@ class ProcessPose:
                 [0, 4], [1, 5], [2, 6], [3, 7]  # vertical edges
             ]
 
-            # Get global coordinates
+            # Get global coordinates and apply a depth buffer for visualisation
             global_corners = [self._transform_to_global(corner, pose_data) for corner in corners_3d]
-            frame_global_bboxes.append(global_corners)
-
             visualise_corners_3d = self._create_3d_bounding_box(global_corners, bbox_depth_buffer)
+            frame_global_bboxes.append(visualise_corners_3d)
 
             # Create line set for bounding box
             line_set = o3d.geometry.LineSet(
@@ -175,7 +181,6 @@ class ProcessPose:
             # Debugging prints
             print(f"\tOriginal 2D Corners: {corners}")
             print(f"\tScaled 2D Corners: {scaled_corners}")
-            print(f"\tMedian Depth: {median_depth}")
             print(f"\t3D Corners before Mapping: {corners_3d}")
             print(f"\tGlobal 3D Coordinates: {global_corners}\n")
 

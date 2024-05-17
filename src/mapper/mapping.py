@@ -22,10 +22,10 @@ class Mapping:
         overlay_pose=False,
         radius=0.1,
         max_nn=30,
-        depth=10,
+        depth=8,
         alpha=0.02,
         radii = [0.005, 0.01, 0.02, 0.04],
-        scale_factor = 1.0,
+        scale_factor = 2.0,
     ):
         self.eps = eps
         self.pose = pose
@@ -37,8 +37,8 @@ class Mapping:
 
         self.lines = [
             [0, 1], [1, 2], [2, 3], [3, 0], # bottom face
-            # [4, 5], [5, 6], [6, 7], [7, 4], # top face
-            # [0, 4], [1, 5], [2, 6], [3, 7]  # vertical edges
+            [4, 5], [5, 6], [6, 7], [7, 4], # top face
+            [0, 4], [1, 5], [2, 6], [3, 7]  # vertical edges
         ]
 
         # Mesh data
@@ -50,7 +50,12 @@ class Mapping:
         self.scale_factor = scale_factor
 
         # Load the point cloud
-        self.pcd = o3d.io.read_point_cloud(self.ply_filepath)
+        self.pcd = o3d.io.read_point_cloud(
+            self.ply_filepath,
+            remove_nan_points=True,
+            remove_infinite_points=True,
+            print_progress=True,
+        )
 
     def make_point_cloud(self):
         if self.preprocess_point_cloud:
@@ -75,9 +80,9 @@ class Mapping:
         print("\tMaking mesh...")
         mesh = mesh_methods[algo_method]()
 
-        # Optimise mesh
-        print("\tOptimising mesh...")
-        mesh = self._optimise_mesh(mesh)
+        # # Optimise mesh
+        # print("\tOptimising mesh...")
+        # mesh = self._optimise_mesh(mesh)
 
         # Visualise mesh
         print("\tVisualising mesh...")
@@ -106,7 +111,7 @@ class Mapping:
         self.pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=self.radius, max_nn=self.max_nn))
 
         # Apply Poisson surface reconstruction
-        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(self.pcd, depth=self.depth)
+        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(self.pcd, depth=self.depth, scale=self.scale_factor)
 
         return mesh
 
@@ -148,21 +153,21 @@ class Mapping:
         vis = o3d.visualization.Visualizer()
         vis.create_window()
 
+        print(f"Point Cloud Data: {data}")
+
         # Make mesh/point_cloud
-        print(data)
         vis.add_geometry(data)
 
         # Add bounding boxes to the visualizer
         for frame_index, bbox_list in self.global_bboxes_data.items():
             for bbox in bbox_list:
                 points = [corner for corner in bbox]
+                print(f"Global BBox Coordinates for Frame {frame_index}: {points}")
 
                 line_set = o3d.geometry.LineSet(
                     points=o3d.utility.Vector3dVector(points),
                     lines=o3d.utility.Vector2iVector(self.lines)
                 )
-                render_option = vis.get_render_option()
-                render_option.line_width = 10.0
                 line_set.paint_uniform_color([1, 0, 0])
                 vis.add_geometry(line_set)
 

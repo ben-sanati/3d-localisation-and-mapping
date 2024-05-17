@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 from torchvision.transforms import transforms
 
 class ImageDataset(Dataset):
-    def __init__(self, image_dir, depth_image_dir, calibration_dir, img_size, alt_width=256, alt_height=192, processing=True):
+    def __init__(self, image_dir, depth_image_dir, calibration_dir, img_size, processing=True):
         self.image_dir, self.depth_image_dir, self.calibration_dir = image_dir, depth_image_dir, calibration_dir
         self.img_size = img_size
         self.processing = processing
