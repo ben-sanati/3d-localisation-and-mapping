@@ -25,7 +25,7 @@ class Mapping:
         depth=8,
         alpha=0.02,
         radii = [0.005, 0.01, 0.02, 0.04],
-        scale_factor = 2.0,
+        scale_factor = 1.0,
     ):
         self.eps = eps
         self.pose = pose
@@ -80,9 +80,11 @@ class Mapping:
         print("\tMaking mesh...")
         mesh = mesh_methods[algo_method]()
 
-        # # Optimise mesh
-        # print("\tOptimising mesh...")
-        # mesh = self._optimise_mesh(mesh)
+        # Optimise mesh
+        print("\tOptimising mesh...")
+        mesh = self._optimise_mesh(mesh)
+
+        # mesh = self.pcd
 
         # Visualise mesh
         print("\tVisualising mesh...")
@@ -183,7 +185,7 @@ class Mapping:
             line_colors = []
             for i, (point, direction) in enumerate(zip(pose_point_cloud.points, directions)):
                 lines.append([i, i + len(pose_point_cloud.points)])
-                if i == 0:
+                if i == 1:
                     line_colors.append([1, 0, 0])
                 else:
                     line_colors.append([0, 1, 0])
@@ -204,7 +206,7 @@ class Mapping:
     def _quaternion_to_rotation_matrix(q):
         qw, qx, qy, qz = q
         rotation = R.from_quat([qx, qy, qz, qw]).as_matrix()
-        rotation[:, 1:] *= -1
+        # rotation[:, 1:] *= -1
         return rotation
 
 

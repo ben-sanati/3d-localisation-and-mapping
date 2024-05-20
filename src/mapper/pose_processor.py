@@ -71,7 +71,7 @@ class ProcessPose:
 
             frame_global_bboxes = self._3d_processing(pose_data, rgb_image_pil, depth_image_cv, bboxes, camera_intrinsics)
             global_bboxes[frame_index] = frame_global_bboxes
-            break
+            # break
 
         return global_bboxes
 
@@ -431,7 +431,7 @@ if __name__ == '__main__':
         depth_image_dir=depth_image_dir,
         calibration_dir=calibration_dir,
         img_size=img_size,
-        processing=False
+        processing=False,
     )
     print(f"Pose: {pose_df}\n\nDepth Images: {len(dataset)}\n\nPredictions: {predictions}")
 

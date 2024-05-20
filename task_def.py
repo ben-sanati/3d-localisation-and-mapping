@@ -46,7 +46,7 @@ def extract_images(db_path, img_size, batch_size, save_dir, image_dir, depth_ima
 
     return dataset, dataloader
 
-def detect_signs(dataloader, img_size, batch_size, conf_thresh, iou_thresh):
+def detect_signs(dataloader, img_size, batch_size, conf_thresh, iou_thresh, view_img):
     # Instance model
     print("Detecting Signs...", flush=True)
     model = ObjectDetector(
@@ -54,7 +54,7 @@ def detect_signs(dataloader, img_size, batch_size, conf_thresh, iou_thresh):
         iou_thresh=iou_thresh,
         img_size=img_size,
         batch_size=batch_size,
-        view_img=False,
+        view_img=view_img,
         save_img="src/common/data/gold_std/processed_img",
     )
 
@@ -128,6 +128,7 @@ if __name__ == '__main__':
     batch_size = config.getint('detection', 'batch_size')
     conf_thresh = config.getfloat('detection', 'conf_thresh')
     iou_thresh = config.getfloat('detection', 'iou_thresh')
+    view_img = config.getboolean('detection', 'view_img')
 
     # Access configuration variables from the 'mapping' section
     eps = float(config['mapping']['eps'])
@@ -156,7 +157,7 @@ if __name__ == '__main__':
     data_to_save["dataloader"] = dataloader
 
     # Detecting signs
-    predictions = detect_signs(dataloader, img_size, batch_size, conf_thresh, iou_thresh)
+    predictions = detect_signs(dataloader, img_size, batch_size, conf_thresh, iou_thresh, view_img)
     data_to_save["predictions"] = predictions
     del dataloader
     gc.collect()

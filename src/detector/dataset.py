@@ -1,6 +1,7 @@
 import os
 import yaml
 from PIL import Image
+from natsort import natsorted
 
 from torch.utils.data import Dataset
 from torchvision.transforms import transforms
@@ -11,8 +12,8 @@ class ImageDataset(Dataset):
         self.img_size = img_size
         self.processing = processing
 
-        self.image_filenames = sorted(os.listdir(image_dir))
-        self.depth_image_filenames = sorted(os.listdir(depth_image_dir))
+        self.image_filenames = natsorted(os.listdir(image_dir))
+        self.depth_image_filenames = natsorted(os.listdir(depth_image_dir))
         self.paired_filenames = self._pair_filenames()
 
         self.depth_transform = transforms.ToTensor()
@@ -33,7 +34,7 @@ class ImageDataset(Dataset):
 
     def __getitem__(self, idx):
         image_filename, depth_filename = self.paired_filenames[idx]
-        
+
         image_path = os.path.join(self.image_dir, image_filename)
         depth_image_path = os.path.join(self.depth_image_dir, depth_filename)
         calibration_path = os.path.join(self.calibration_dir, image_filename.replace('.jpg', '.yaml'))
