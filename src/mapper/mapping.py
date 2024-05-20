@@ -84,8 +84,6 @@ class Mapping:
         # print("\tOptimising mesh...")
         # mesh = self._optimise_mesh(mesh)
 
-        # mesh = self.pcd
-
         # Visualise mesh
         print("\tVisualising mesh...")
         self._visualiser(mesh)
@@ -206,7 +204,6 @@ class Mapping:
     def _quaternion_to_rotation_matrix(q):
         qw, qx, qy, qz = q
         rotation = R.from_quat([qx, qy, qz, qw]).as_matrix()
-        # rotation[:, 1:] *= -1
         return rotation
 
 

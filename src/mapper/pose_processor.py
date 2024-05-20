@@ -112,7 +112,7 @@ class ProcessPose:
         if self.display_3d:
             vis.create_window()
 
-        frustum = self._get_camera_frustum(vis, translation, rotation, fx, fy, cx, cy, self.depth_width, self.depth_height)
+        frustum = self._get_camera_frustum(translation, rotation, fx, fy, self.depth_width, self.depth_height)
         rgb_image_o3d = o3d.geometry.Image(np.array(rgb_image_pil))
         depth_image_o3d = o3d.geometry.Image(np.array(depth_image_cv).astype(np.uint16))
         rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(
@@ -151,7 +151,7 @@ class ProcessPose:
 
             # Scale bbox coordinates from initial image size to depth image width and height
             scaled_corners = self._scale_bounding_box(corners, (self.img_size, self.img_size), (self.depth_width, self.depth_height))
-            bbox_depth_buffer = 0.06
+            bbox_depth_buffer = 0.03
 
             # Generate 3D corners with z-values from median over bbox (x, y) range
             corners_3d = [self._depth_to_3d(int(x), int(y), rgbd_image, fx, fy, cx, cy) for x, y in scaled_corners]
@@ -185,11 +185,8 @@ class ProcessPose:
                 pose_point_cloud.points = o3d.utility.Vector3dVector(position)
                 vis.add_geometry(pose_point_cloud)
 
-                # Draw camera frustum
+                # # Draw camera frustum
                 vis.add_geometry(frustum)
-
-                axis_mesh = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.3, origin=position[0])
-                vis.add_geometry(axis_mesh)
 
             # Debugging prints
             print(f"\tOriginal 2D Corners: {corners}")
@@ -315,49 +312,35 @@ class ProcessPose:
         global_point = (transformation @ local_point.T)[:3, 0]
         return global_point
 
-    @staticmethod
-    def _get_camera_frustum(vis, position, rotation, fx, fy, cx, cy, width, height, length=0.1):
+    def _get_camera_frustum(self, position, rotation, fx, fy, width, height, length=0.3):
         """
         Draws the camera frustum in the 3D visualization.
 
         Parameters:
-            vis (open3d.visualization.Visualizer): The Open3D visualizer.
             position (np.array): The camera position (tx, ty, tz).
             rotation (np.array): The camera rotation matrix (3x3).
             fx (float): Focal length in x direction.
             fy (float): Focal length in y direction.
-            cx (float): Principal point x-coordinate.
-            cy (float): Principal point y-coordinate.
             width (int): Image width.
             height (int): Image height.
-            length (float): Length of the frustum (default: 0.1).
+            length (float): Length of the frustum (default: 0.3).
         """
-        # Compute the frustum's corner points in the camera coordinate frame
-        near_plane = 0.1  # Near plane distance
-        far_plane = near_plane + length  # Far plane distance
-        aspect_ratio = width / height
+        # Get directions (in a right-handed coordinate system, the direction of the camera is the 3rd column of R)
+        rotation = rotation[0:3, 2]
 
-        # Far plane dimensions
-        far_height = 2 * far_plane * np.tan(np.arctan2(height / 2.0, fy))
-        far_width = far_height * aspect_ratio
+        # Normalise the direction
+        direction = rotation / np.linalg.norm(rotation)
+        corners_half = self._get_frustum_corners(position, direction, height, width, length / 2, fx, fy)
+        corners_full = self._get_frustum_corners(position, direction, height, width, length, fx, fy)
 
-        # Define frustum corner points in the camera coordinate frame
-        far_tl = np.array([-far_width / 2, far_height / 2, -far_plane])
-        far_tr = np.array([far_width / 2, far_height / 2, -far_plane])
-        far_bl = np.array([-far_width / 2, -far_height / 2, -far_plane])
-        far_br = np.array([far_width / 2, -far_height / 2, -far_plane])
+        frustum_points = np.array([position, *corners_half, *corners_full])
 
-        # Transform frustum corner points to the global coordinate frame
-        frustum_points = [far_tl, far_tr, far_bl, far_br]
-        frustum_points = [rotation @ point + position for point in frustum_points]
-
-        # Add the camera position to the points
-        frustum_points.append(position)
-
-        # Define frustum lines connecting the camera position to the four corners of the far plane
+        # # Define frustum lines connecting the camera position to the four corners of the far plane
         frustum_lines = [
-            [4, 0], [4, 1], [4, 2], [4, 3],  # Lines from camera position to far plane corners
-            [0, 1], [1, 3], [3, 2], [2, 0]   # Far plane edges
+            [0, 1], [0, 2], [0, 3], [0, 4],
+            [1, 2], [1, 3], [3, 4], [2, 4],
+            [0, 5], [0, 6], [0, 7], [0, 8],
+            [5, 6], [5, 7], [7, 8], [6, 8],
         ]
 
         # Create LineSet for the frustum
@@ -370,25 +353,31 @@ class ProcessPose:
         return frustum_line_set
 
     @staticmethod
-    def _compute_frustum_normal(frustum_corners):
-        # Assuming frustum_corners is a list of 4 corner points of the frustum face
-        # Select three non-collinear points from the frustum corners
-        point1, point2, point3 = frustum_corners[:3]
+    def _get_frustum_corners(position, direction, height, width, length, fx, fy):
+        # Calculate the size of the frustum base
+        half_width = (width / (2.0 * fx)) * length
+        half_height = (height / (2.0 * fy)) * length
 
-        # Compute two vectors on the frustum face
-        vec1 = point2 - point1
-        vec2 = point3 - point1
+        # Choose an arbitrary up vector that is not collinear with the direction
+        arbitrary_up = np.array([0, 1, 0]) if abs(direction[1]) < 0.9 else np.array([1, 0, 0])
 
-        # Compute the cross product of the vectors to get the normal vector
-        normal = np.cross(vec1, vec2)
-        # Normalize the normal vector
-        normal /= np.linalg.norm(normal)
+        # Calculate right and up vectors
+        right = np.cross(direction, arbitrary_up)
+        right /= np.linalg.norm(right)
+        up = np.cross(right, direction)
+        up /= np.linalg.norm(up)
 
-        return normal
+        # Calculate frustum base corners
+        base_center = position + direction * length
+        corner1 = base_center + half_width * right + half_height * up
+        corner2 = base_center + half_width * right - half_height * up
+        corner3 = base_center - half_width * right + half_height * up
+        corner4 = base_center - half_width * right - half_height * up
+
+        return corner1, corner2, corner3, corner4
 
 
 if __name__ == '__main__':
-    # TODO: define a z coordinate base based on the mean value of the depths (that is not 0) to deal with 0 value depths and processing images on windows
     os.chdir(r'../..')
     config_path = r"src/common/configs/variables.cfg"
     config = configparser.ConfigParser()
