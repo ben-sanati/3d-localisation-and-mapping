@@ -80,9 +80,9 @@ class Mapping:
         print("\tMaking mesh...")
         mesh = mesh_methods[algo_method]()
 
-        # Optimise mesh
-        print("\tOptimising mesh...")
-        mesh = self._optimise_mesh(mesh)
+        # # Optimise mesh
+        # print("\tOptimising mesh...")
+        # mesh = self._optimise_mesh(mesh)
 
         # mesh = self.pcd
 
@@ -178,8 +178,8 @@ class Mapping:
             pose_point_cloud.points = o3d.utility.Vector3dVector(self.pose[['tx', 'ty', 'tz']].values)
             vis.add_geometry(pose_point_cloud)
 
-            # Get directions
-            directions = np.array([self._quaternion_to_rotation_matrix(q)[0] for q in self.pose[['qw', 'qx', 'qy', 'qz']].to_numpy()])
+            # Get directions (in a right-handed coordinate system, the direction of the camera is the 3rd column of R)
+            directions = np.array([self._quaternion_to_rotation_matrix(q)[0:3, 2] for q in self.pose[['qw', 'qx', 'qy', 'qz']].to_numpy()])
 
             lines = []
             line_colors = []

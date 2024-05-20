@@ -68,10 +68,12 @@ class ProcessPose:
 
             # Get pose information for the image
             pose_data = self.pose.iloc[frame_index][1:].to_numpy()
+            print(f"Current Pose Data: {pose_data}")
 
             frame_global_bboxes = self._3d_processing(pose_data, rgb_image_pil, depth_image_cv, bboxes, camera_intrinsics)
             global_bboxes[frame_index] = frame_global_bboxes
-            # break
+            if frame_index == 10:
+                break
 
         return global_bboxes
 
@@ -225,24 +227,6 @@ class ProcessPose:
         scaled_corners = [(x * scale_x, y * scale_y) for (x, y) in corners]
 
         return scaled_corners
-
-    @staticmethod
-    def _calculate_median_depth(depth_image, scaled_corners):
-        x_min = int(min([c[0] for c in scaled_corners]))
-        x_max = int(max([c[0] for c in scaled_corners]))
-        y_min = int(min([c[1] for c in scaled_corners]))
-        y_max = int(max([c[1] for c in scaled_corners]))
-
-        depth_values = depth_image[y_min:y_max+1, x_min:x_max+1].flatten()
-
-        non_zero_depths = depth_values[depth_values > 0]
-
-        if len(non_zero_depths) == 0:
-            return 0
-
-        median_depth = np.median(non_zero_depths)
-
-        return median_depth
 
     def _depth_to_3d(self, x, y, rgbd_image, fx, fy, cx, cy):
         """
@@ -442,7 +426,7 @@ if __name__ == '__main__':
         img_size=img_size,
         depth_width=depth_width,
         depth_height=depth_height,
-        display_rgbd=False,
+        display_rgbd=True,
         display_3d=True,
     )
     pose_processing.get_global_coordinates()

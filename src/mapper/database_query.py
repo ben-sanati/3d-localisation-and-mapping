@@ -23,23 +23,19 @@ class PoseDataExtractor:
         self.vis = o3d.visualization.Visualizer()
         self.vis.create_window()
 
-        # Get the rendering options
-        opt = self.vis.get_render_option()
-        opt.point_size = 2.0  # Set the point size to smaller values
-
         # Get pose points and camera directions
         self.pcd.points = o3d.utility.Vector3dVector(df[['tx', 'ty', 'tz']].values)
         colours = np.random.uniform(0, 1, size=(len(df), 3))
         self.pcd.colors = o3d.utility.Vector3dVector(colours)
 
-        directions = np.array([self._quaternion_to_rotation_matrix(q)[0] for q in df[['qw', 'qx', 'qy', 'qz']].to_numpy()])
+        directions = np.array([self._quaternion_to_rotation_matrix(q)[0:3, 2] for q in df[['qw', 'qx', 'qy', 'qz']].to_numpy()])
 
         # Create line set for orientations
         lines = []
         line_colors = []
         for i, (point, direction) in enumerate(zip(self.pcd.points, directions)):
             lines.append([i, i + len(self.pcd.points)])
-            line_colors.append([1, 0, 0])  # Red color for direction vectors
+            line_colors.append([0, 1, 0])  # Red color for direction vectors
 
         # Create line set geometry
         line_set = o3d.geometry.LineSet()
