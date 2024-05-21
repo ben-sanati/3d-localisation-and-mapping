@@ -31,8 +31,9 @@ class ProcessPose:
         depth_height,
         display_rgbd=False,
         display_3d=False,
-        scale_depth=125,
-        bbox_depth_buffer = 0.03,
+        scale_depth=100,
+        bbox_depth_buffer=0.03,
+        verbose=False,
     ):
         """
         Initializes the ProcessPose class with pose data, depth images, and bounding box coordinates.
@@ -57,6 +58,7 @@ class ProcessPose:
         self.display_3d = display_3d
         self.scale_depth = scale_depth
         self.bbox_depth_buffer = bbox_depth_buffer
+        self.verbose = verbose
 
         # Instance util classes
         self.visualiser = Visualiser()
@@ -100,105 +102,76 @@ class ProcessPose:
         extrinsics = self.transforms.get_transformation_matrix(pose_data)
         extrinsics = np.linalg.inv(extrinsics)
 
-        # Configure the 3D visualizer
-        vis = o3d.visualization.Visualizer()
-        if self.display_3d:
-            vis.create_window()
-
-        frustum = self._get_camera_frustum(
-            self.transforms.get_translation(pose_data),
-            self.transforms.get_rotation(pose_data),
-            fx,
-            fy,
-            self.depth_width,
-            self.depth_height
-        )
-        rgb_image_o3d = o3d.geometry.Image(rgb_image_cv)
-        depth_image_o3d = o3d.geometry.Image(np.array(depth_image_cv).astype(np.uint16))
-        rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(
-            rgb_image_o3d,
-            depth_image_o3d,
-            depth_scale=self.scale_depth,
-            depth_trunc=10,
-            convert_rgb_to_intensity=False,
+        # Define intrinsics
+        intrinsics = o3d.camera.PinholeCameraIntrinsic(
+            camera_intrinsics["image_width"],
+            camera_intrinsics["image_height"],
+            fx, fy, cx, cy,
         )
 
-        intrinsics = o3d.camera.PinholeCameraIntrinsic(720, 960, fx, fy, cx, cy)
-        point_cloud = o3d.geometry.PointCloud.create_from_rgbd_image(
+        # Generate RGBD image and point cloud
+        rgbd_image = self.visualiser.gen_rgbd(
+            rgb_image_cv,
+            depth_image_cv,
+            self.scale_depth,
+        )
+        point_cloud = self.visualiser.gen_point_cloud(
             rgbd_image,
             intrinsics,
             extrinsics,
         )
-        if self.display_3d:
-            vis.add_geometry(point_cloud)      
 
-        # The 3D corners are refined by mapping them to the nearest points in the point cloud using the KDTree
-        point_cloud_tree = KDTree(np.asarray(point_cloud.points))
+        # Configure the 3D visualizer
+        if self.display_3d:
+            vis = o3d.visualization.Visualizer()
+            vis.create_window()
+            vis.add_geometry(point_cloud)
 
         # Store global coordinates
         frame_global_bboxes = []
 
         for bbox in bboxes:
-            # Define limits to bbox
-            coordinates = np.array(bbox[:4])
-            coordinates[coordinates >= self.img_size] = self.img_size - 0.1
-
             # Define the 2D bbox in 3D space
-            corners = [
-                (coordinates[0], coordinates[1]), (coordinates[0], coordinates[3]),
-                (coordinates[2], coordinates[3]), (coordinates[2], coordinates[1])
-            ]
+            corners = self.transforms.bbox_to_3d(bbox, img_size)
 
             # Scale bbox coordinates from initial image size to depth image width and height
-            scaled_corners = self.transforms._scale_bounding_box(
+            scaled_corners = self.transforms.scale_bounding_box(
                 corners,
                 (self.img_size, self.img_size),
                 (self.depth_width, self.depth_height)
             )
 
             # Generate 3D corners with z-values from median over bbox (x, y) range
-            corners_3d = [self._depth_to_3d(int(x), int(y), rgbd_image, fx, fy, cx, cy) for x, y in scaled_corners]
-
-            # Define lines based on corner points for a flat box
-            lines = [
-                [0, 1], [1, 2], [2, 3], [3, 0], # bottom face
-                [4, 5], [5, 6], [6, 7], [7, 4], # top face
-                [0, 4], [1, 5], [2, 6], [3, 7]  # vertical edges
-            ]
+            corners_3d = [self._depth_to_3d(int(x), int(y), depth_image_cv, fx, fy, cx, cy) for x, y in scaled_corners]
 
             # Get global coordinates and apply a depth buffer for visualisation
             global_corners = [self._transform_to_global(corner, pose_data) for corner in corners_3d]
-            visualise_corners_3d = self._create_3d_bounding_box(global_corners, self.bbox_depth_buffer)
-            frame_global_bboxes.append(visualise_corners_3d)
+            visualise_corners_3d = self.transforms.create_3d_bounding_box(global_corners, self.bbox_depth_buffer)
+            frame_global_bboxes.append(global_corners)
 
-            # Create line set for bounding box
-            line_set = o3d.geometry.LineSet(
-                points=o3d.utility.Vector3dVector(visualise_corners_3d),
-                lines=o3d.utility.Vector2iVector(lines)
-            )
+            if self.verbose:
+                print(f"\tOriginal 2D Corners: {corners}")
+                print(f"\tScaled 2D Corners: {scaled_corners}")
+                print(f"\t3D Corners before Mapping: {corners_3d}")
+                print(f"\tGlobal 3D Coordinates: {global_corners}\n")
 
             if self.display_3d:
-                # Overlay bboxes
-                line_set.paint_uniform_color([1, 0, 0])
+                # Overlay 3D bboxes onto point cloud
+                line_set = self.visualiser.overlay_3d_bbox(visualise_corners_3d)
                 vis.add_geometry(line_set)
 
-                # Overlay pose
-                pose_point_cloud = o3d.geometry.PointCloud()
-                position = np.vstack((tx, ty, tz)).T
-                pose_point_cloud.points = o3d.utility.Vector3dVector(position)
-                vis.add_geometry(pose_point_cloud)
-
-                # # Draw camera frustum
+                # Draw camera frustum
+                frustum = self.visualiser._get_camera_frustum(
+                    self.transforms.get_translation(pose_data),
+                    self.transforms.get_rotation(pose_data),
+                    fx,
+                    fy,
+                    self.depth_width,
+                    self.depth_height,
+                )
                 vis.add_geometry(frustum)
 
-            # Debugging prints
-            print(f"\tOriginal 2D Corners: {corners}")
-            print(f"\tScaled 2D Corners: {scaled_corners}")
-            print(f"\t3D Corners before Mapping: {corners_3d}")
-            print(f"\tGlobal 3D Coordinates: {global_corners}\n")
-
         if self.display_3d:
-            # Visualize
             vis.poll_events()
             vis.update_renderer()
             vis.run()
@@ -206,7 +179,7 @@ class ProcessPose:
 
         return frame_global_bboxes
 
-    def _depth_to_3d(self, x, y, rgbd_image, fx, fy, cx, cy):
+    def _depth_to_3d(self, x, y, depth_image, fx, fy, cx, cy):
         """
         Converts 2D pixel coordinates from the depth image to 3D space coordinates.
 
@@ -218,9 +191,7 @@ class ProcessPose:
         Returns:
             numpy.ndarray: 3D coordinates [X, Y, Z] relative to the camera frame.
         """
-        # Extract the depth value at (x, y) (rtabmap uses mm by default)
-        depth_image = np.asarray(rgbd_image.depth)
-        Z = depth_image[y, x]
+        Z = depth_image[y, x] / self.scale_depth
 
         # Convert (x, y) coordinates into 3D space based on camera intrinsic parameters
         X = (x - cx) * Z / fx
@@ -228,44 +199,6 @@ class ProcessPose:
 
         # Return the 3D point as a numpy array
         return np.array([X, Y, Z])
-
-    @staticmethod
-    def _create_3d_bounding_box(global_corners, buffer_depth):
-        """
-        Create a 3D bounding box from 2D corners with a specified buffer depth.
-        
-        Parameters:
-            global_corners (list of np.array): List of 4 global 3D coordinates forming the 2D bounding box.
-            buffer_depth (float): Depth to extend the bounding box along its normal.
-        
-        Returns:
-            o3d.geometry.LineSet: LineSet object representing the 3D bounding box.
-        """
-        # Ensure we have exactly 4 corners
-        assert len(global_corners) == 4, "global_corners should contain exactly 4 points."
-
-        # Convert list of corners to numpy array
-        corners = np.array(global_corners)
-
-        # Compute the centroid of the bounding box
-        centroid = np.mean(corners, axis=0)
-
-        # Compute two vectors on the plane of the bounding box
-        vec1 = corners[1] - corners[0]
-        vec2 = corners[3] - corners[0]
-
-        # Compute the normal vector to the plane of the bounding box
-        normal = np.cross(vec1, vec2)
-        normal = normal / np.linalg.norm(normal)  # Normalize the normal vector
-
-        # Create 8 corners of the 3D bounding box
-        box_corners = []
-        for corner in corners:
-            box_corners.append(corner + buffer_depth * normal)
-        for corner in corners:
-            box_corners.append(corner - buffer_depth * normal)
-
-        return box_corners
 
     def _transform_to_global(self, local_point, pose_data):
         """
@@ -286,70 +219,6 @@ class ProcessPose:
         # Apply rotation and translation to obtain the global coordinates
         global_point = (transformation @ local_point.T)[:3, 0]
         return global_point
-
-    def _get_camera_frustum(self, position, rotation, fx, fy, width, height, length=0.3):
-        """
-        Draws the camera frustum in the 3D visualization.
-
-        Parameters:
-            position (np.array): The camera position (tx, ty, tz).
-            rotation (np.array): The camera rotation matrix (3x3).
-            fx (float): Focal length in x direction.
-            fy (float): Focal length in y direction.
-            width (int): Image width.
-            height (int): Image height.
-            length (float): Length of the frustum (default: 0.3).
-        """
-        # Get directions (in a right-handed coordinate system, the direction of the camera is the 3rd column of R)
-        rotation = rotation[0:3, 2]
-
-        # Normalise the direction
-        direction = rotation / np.linalg.norm(rotation)
-        corners_half = self._get_frustum_corners(position, direction, height, width, length / 2, fx, fy)
-        corners_full = self._get_frustum_corners(position, direction, height, width, length, fx, fy)
-
-        frustum_points = np.array([position, *corners_half, *corners_full])
-
-        # # Define frustum lines connecting the camera position to the four corners of the far plane
-        frustum_lines = [
-            [0, 1], [0, 2], [0, 3], [0, 4],
-            [1, 2], [1, 3], [3, 4], [2, 4],
-            [0, 5], [0, 6], [0, 7], [0, 8],
-            [5, 6], [5, 7], [7, 8], [6, 8],
-        ]
-
-        # Create LineSet for the frustum
-        frustum_line_set = o3d.geometry.LineSet(
-            points=o3d.utility.Vector3dVector(frustum_points),
-            lines=o3d.utility.Vector2iVector(frustum_lines)
-        )
-        frustum_line_set.paint_uniform_color([0, 1, 0])  # Green color for the frustum
-
-        return frustum_line_set
-
-    @staticmethod
-    def _get_frustum_corners(position, direction, height, width, length, fx, fy):
-        # Calculate the size of the frustum base
-        half_width = (width / (2.0 * fx)) * length
-        half_height = (height / (2.0 * fy)) * length
-
-        # Choose an arbitrary up vector that is not collinear with the direction
-        arbitrary_up = np.array([0, 1, 0]) if abs(direction[1]) < 0.9 else np.array([1, 0, 0])
-
-        # Calculate right and up vectors
-        right = np.cross(direction, arbitrary_up)
-        right /= np.linalg.norm(right)
-        up = np.cross(right, direction)
-        up /= np.linalg.norm(up)
-
-        # Calculate frustum base corners
-        base_center = position + direction * length
-        corner1 = base_center + half_width * right + half_height * up
-        corner2 = base_center + half_width * right - half_height * up
-        corner3 = base_center - half_width * right + half_height * up
-        corner4 = base_center - half_width * right - half_height * up
-
-        return corner1, corner2, corner3, corner4
 
 
 if __name__ == '__main__':
@@ -394,7 +263,7 @@ if __name__ == '__main__':
         img_size=img_size,
         processing=False,
     )
-    print(f"Pose: {pose_df}\n\nDepth Images: {len(dataset)}\n\nPredictions: {predictions}")
+    print(f"Pose: {pose_df}\n\nDepth Images: {len(dataset)}")
 
     pose_processing = ProcessPose(
         pose=pose_df,
