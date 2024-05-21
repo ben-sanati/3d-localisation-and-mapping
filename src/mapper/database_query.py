@@ -1,3 +1,4 @@
+import sys
 import pickle
 import sqlite3
 import pandas as pd
@@ -5,13 +6,17 @@ import numpy as np
 import open3d as o3d
 from scipy.spatial.transform import Rotation as R
 
+sys.path.insert(0, r'../..')
+
+from src.utils.transformations import Transformations
+
 
 class PoseDataExtractor:
     def __init__(self, pose_path):
         self.pose_path = pose_path
         self.pcd = o3d.geometry.PointCloud()
 
-        self.lines = [[0, 1], [1, 2], [2, 3], [3, 0]]
+        self.transformations = Transformations()
 
     def fetch_data(self):
         df = pd.read_csv(self.pose_path, sep=' ', skiprows=1, header=None)
@@ -30,14 +35,15 @@ class PoseDataExtractor:
         colours = np.random.uniform(0, 1, size=(len(df), 3))
         self.pcd.colors = o3d.utility.Vector3dVector(colours)
 
-        directions = np.array([self._quaternion_to_rotation_matrix(q)[0:3, 2] for q in df[['qw', 'qx', 'qy', 'qz']].to_numpy()])
+        # directions = np.array([self._quaternion_to_rotation_matrix(q)[0:3, 2] for q in df[['qw', 'qx', 'qy', 'qz']].to_numpy()])
+        directions = self.transformations.get_camera_direction(df)
 
         # Create line set for orientations
         lines = []
         line_colors = []
         for i, (point, direction) in enumerate(zip(self.pcd.points, directions)):
             lines.append([i, i + len(self.pcd.points)])
-            line_colors.append([0, 1, 0])  # Red color for direction vectors
+            line_colors.append([0, 1, 0])
 
         # Create line set geometry
         line_set = o3d.geometry.LineSet()
@@ -47,12 +53,6 @@ class PoseDataExtractor:
 
         o3d.visualization.draw_geometries([self.pcd, line_set])
         self.vis.destroy_window()
-
-    @staticmethod
-    def _quaternion_to_rotation_matrix(q):
-        qw, qx, qy, qz = q
-        rotation = R.from_quat([qx, qy, qz, qw])
-        return rotation.as_matrix()
 
 
 if __name__ == "__main__":

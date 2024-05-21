@@ -16,6 +16,8 @@ from torchvision.transforms.functional import to_pil_image
 sys.path.insert(0, r'../..')
 
 from src.detector.dataset import ImageDataset
+from src.utils.visualisation import Visualiser
+from src.utils.transformations import VisualisationTransforms
 
 
 class ProcessPose:
@@ -30,6 +32,7 @@ class ProcessPose:
         display_rgbd=False,
         display_3d=False,
         scale_depth=125,
+        bbox_depth_buffer = 0.03,
     ):
         """
         Initializes the ProcessPose class with pose data, depth images, and bounding box coordinates.
@@ -53,44 +56,38 @@ class ProcessPose:
         self.display_rgbd = display_rgbd
         self.display_3d = display_3d
         self.scale_depth = scale_depth
+        self.bbox_depth_buffer = bbox_depth_buffer
+
+        # Instance util classes
+        self.visualiser = Visualiser()
+        self.transforms = VisualisationTransforms()
 
     def get_global_coordinates(self):
         global_bboxes = {}
         for frame_index, bboxes in self.bbox_coordinates.items():
             # Acquire images
-            rgb_image_pil, rgb_image_cv, depth_image_cv, depth_image_norm_cv, camera_intrinsics = self._parse_images(frame_index)
+            rgb_tensor, depth_tensor, camera_intrinsics = self.dataset[frame_index]
+            rgb_image_cv, depth_image_cv, depth_image_norm_cv = self.visualiser.parse_images(rgb_tensor, depth_tensor)
 
-            # Display the images
+            # Display the RGB+D images
             if self.display_rgbd:
-                cv2.imshow("RGB Image", rgb_image_cv)
-                cv2.imshow("Depth Image", depth_image_norm_cv)
-                cv2.waitKey(0)  # Wait for key press to proceed to the next image
-                cv2.destroyAllWindows()
+                self.visualiser.display_imgs(
+                    cv2.cvtColor(rgb_image_cv, cv2.COLOR_RGB2BGR),
+                    depth_image_norm_cv
+                )
 
             # Get pose information for the image
             pose_data = self.pose.iloc[frame_index][1:].to_numpy()
-            print(f"Current Pose Data: {pose_data}")
 
-            frame_global_bboxes = self._3d_processing(pose_data, rgb_image_pil, depth_image_cv, bboxes, camera_intrinsics)
+            # Get global coordinate of bounding boxes
+            frame_global_bboxes = self._3d_processing(pose_data, rgb_image_cv, depth_image_cv, bboxes, camera_intrinsics)
             global_bboxes[frame_index] = frame_global_bboxes
-            if frame_index == 10:
+            if frame_index == 22:
                 break
 
         return global_bboxes
 
-    def _parse_images(self, frame_index):
-        # Acquire images
-        rgb_tensor, depth_tensor, camera_intrinsics = self.dataset[frame_index]
-        rgb_image_pil = to_pil_image(rgb_tensor)
-        depth_image_pil = to_pil_image(depth_tensor)
-        rgb_image_cv = cv2.cvtColor(np.array(rgb_image_pil), cv2.COLOR_RGB2BGR)
-        depth_image_cv = np.array(depth_image_pil)
-        depth_image_norm_cv = cv2.normalize(depth_image_cv, None, 0, 255, cv2.NORM_MINMAX)
-        depth_image_norm_cv = np.uint8(depth_image_norm_cv)
-
-        return rgb_image_pil, rgb_image_cv, depth_image_cv, depth_image_norm_cv, camera_intrinsics
-
-    def _3d_processing(self, pose_data, rgb_image_pil, depth_image_cv, bboxes, camera_intrinsics):
+    def _3d_processing(self, pose_data, rgb_image_cv, depth_image_cv, bboxes, camera_intrinsics):
         # Get camera intrinsics
         depth_to_rgb_scale = camera_intrinsics["image_width"] / self.depth_width
         fx = camera_intrinsics["fx"] / depth_to_rgb_scale
@@ -100,12 +97,7 @@ class ProcessPose:
 
         # Calculate extrinsics
         tx, ty, tz, qx, qy, qz, qw = pose_data
-        translation = np.array([tx, ty, tz])
-        rotation = R.from_quat([qx, qy, qz, qw]).as_matrix()
-
-        extrinsics = np.eye(4)
-        extrinsics[:3, :3] = rotation
-        extrinsics[:3, 3] = translation
+        extrinsics = self.transforms.get_transformation_matrix(pose_data)
         extrinsics = np.linalg.inv(extrinsics)
 
         # Configure the 3D visualizer
@@ -113,8 +105,15 @@ class ProcessPose:
         if self.display_3d:
             vis.create_window()
 
-        frustum = self._get_camera_frustum(translation, rotation, fx, fy, self.depth_width, self.depth_height)
-        rgb_image_o3d = o3d.geometry.Image(np.array(rgb_image_pil))
+        frustum = self._get_camera_frustum(
+            self.transforms.get_translation(pose_data),
+            self.transforms.get_rotation(pose_data),
+            fx,
+            fy,
+            self.depth_width,
+            self.depth_height
+        )
+        rgb_image_o3d = o3d.geometry.Image(rgb_image_cv)
         depth_image_o3d = o3d.geometry.Image(np.array(depth_image_cv).astype(np.uint16))
         rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(
             rgb_image_o3d,
@@ -151,8 +150,11 @@ class ProcessPose:
             ]
 
             # Scale bbox coordinates from initial image size to depth image width and height
-            scaled_corners = self._scale_bounding_box(corners, (self.img_size, self.img_size), (self.depth_width, self.depth_height))
-            bbox_depth_buffer = 0.03
+            scaled_corners = self.transforms._scale_bounding_box(
+                corners,
+                (self.img_size, self.img_size),
+                (self.depth_width, self.depth_height)
+            )
 
             # Generate 3D corners with z-values from median over bbox (x, y) range
             corners_3d = [self._depth_to_3d(int(x), int(y), rgbd_image, fx, fy, cx, cy) for x, y in scaled_corners]
@@ -166,7 +168,7 @@ class ProcessPose:
 
             # Get global coordinates and apply a depth buffer for visualisation
             global_corners = [self._transform_to_global(corner, pose_data) for corner in corners_3d]
-            visualise_corners_3d = self._create_3d_bounding_box(global_corners, bbox_depth_buffer)
+            visualise_corners_3d = self._create_3d_bounding_box(global_corners, self.bbox_depth_buffer)
             frame_global_bboxes.append(visualise_corners_3d)
 
             # Create line set for bounding box
@@ -203,28 +205,6 @@ class ProcessPose:
             vis.destroy_window()
 
         return frame_global_bboxes
-
-    @staticmethod
-    def _scale_bounding_box(corners, original_size, new_size):
-        """
-        Scales bounding box coordinates to a new image size.
-
-        :param corners: List of tuples [(x_min, y_min), (x_min, y_max), (x_max, y_max), (x_max, y_min)]
-        :param original_size: Tuple (original_width, original_height)
-        :param new_size: Tuple (new_width, new_height)
-        :return: List of scaled bounding box coordinates
-        """
-        original_width, original_height = original_size
-        new_width, new_height = new_size
-
-        # Calculate scale factors
-        scale_x = new_width / original_width
-        scale_y = new_height / original_height
-
-        # Scale each corner
-        scaled_corners = [(x * scale_x, y * scale_y) for (x, y) in corners]
-
-        return scaled_corners
 
     def _depth_to_3d(self, x, y, rgbd_image, fx, fy, cx, cy):
         """
@@ -287,25 +267,19 @@ class ProcessPose:
 
         return box_corners
 
-    def _transform_to_global(self, local_point, pose):
+    def _transform_to_global(self, local_point, pose_data):
         """
         Transforms a 3D point from the camera frame to the global coordinate frame using the given pose.
 
         Parameters:
             local_point (numpy.ndarray): 3D coordinates [X, Y, Z] in the camera frame.
-            pose (numpy.ndarray): Pose data containing translation and rotation (quaternion).
+            pose_data (numpy.ndarray): Pose data containing translation and rotation (quaternion).
 
         Returns:
             numpy.ndarray: Transformed 3D point in the global coordinate frame.
         """
         # Extract the translation and quaternion rotation from the pose
-        tx, ty, tz, qx, qy, qz, qw = pose
-        translation = np.array([tx, ty, tz])
-        rotation = R.from_quat([qx, qy, qz, qw]).as_matrix()
-
-        transformation = np.eye(4)
-        transformation[:3, :3] = rotation
-        transformation[:3, 3] = translation
+        transformation = self.transforms.get_transformation_matrix(pose_data)
 
         local_point = np.array([(*local_point, 1)])
 
@@ -432,4 +406,17 @@ if __name__ == '__main__':
         display_rgbd=True,
         display_3d=True,
     )
-    pose_processing.get_global_coordinates()
+    global_bboxes_data = pose_processing.get_global_coordinates()
+
+    # Save to pickle file
+    data_to_save = {
+        "global_bboxes_data": global_bboxes_data,
+        "pose_df": pose_df,
+    }
+
+    try:
+        with open(pickle_path, "wb") as file:
+            pickle.dump(data_to_save, file)
+            print("Variables stored to pickle file.", flush=True)
+    except Exception as e:
+        print(f"Failed to write to file: {e}")

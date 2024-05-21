@@ -69,19 +69,13 @@ class Mapping:
         self._visualiser(self.pcd)
 
     def make_mesh(self, algo_method="Poisson"):
-        mesh_methods = {
-            "Poisson": self._poisson_surface_recon,
-            "Alpha": self._alpha_shapes,
-            "BPA": self._ball_pivoting_algo
-        }
-
-        if self.preprocess_point_cloud:
-            # DBSCAN clustering
-            self._clustering()
+        # if self.preprocess_point_cloud:
+        #     # DBSCAN clustering
+        #     self._clustering()
 
         # Create mesh
         print("\tMaking mesh...")
-        mesh = mesh_methods[algo_method]()
+        mesh = self._poisson_surface_recon()
 
         # Optimise mesh
         print("\tOptimising mesh...")
@@ -115,24 +109,6 @@ class Mapping:
 
         # Apply Poisson surface reconstruction
         mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(self.pcd, depth=self.depth, scale=self.scale_factor)
-
-        return mesh
-
-    def _alpha_shapes(self):
-        # Estimate normals
-        self.pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=self.radius, max_nn=self.max_nn))
-
-        # Compute alpha shape
-        mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(self.pcd, self.alpha)
-
-        return mesh
-
-    def _ball_pivoting_algo(self):
-        # Estimate normals
-        self.pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=self.radius, max_nn=self.max_nn))
-
-        # Ball Pivoting
-        mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(self.pcd, o3d.utility.DoubleVector(self.radii))
 
         return mesh
 

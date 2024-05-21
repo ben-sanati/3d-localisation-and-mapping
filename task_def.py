@@ -31,10 +31,10 @@ def load_config(file_path):
     config.read(file_path)
     return config
 
-def extract_images(img_size, batch_size, image_dir, depth_image_dir):
-    # print("Extracting frames...", flush=True)
-    # extractor = ImageExtractor(db_path, depth_image_dir)
-    # extractor.fetch_data()
+def extract_images(db_path, img_size, batch_size, image_dir, depth_image_dir):
+    print("Extracting frames...", flush=True)
+    extractor = ImageExtractor(db_path, depth_image_dir)
+    extractor.fetch_data()
 
     # Create dataset
     print("Extracting frames...", flush=True)
@@ -48,7 +48,7 @@ def extract_images(img_size, batch_size, image_dir, depth_image_dir):
 
     return dataset, dataloader
 
-def detect_signs(dataloader, img_size, batch_size, conf_thresh, iou_thresh, view_img):
+def detect_signs(dataloader, img_size, batch_size, conf_thresh, iou_thresh, view_img, processing_path):
     # Instance model
     print("Detecting Signs...", flush=True)
     model = ObjectDetector(
@@ -57,7 +57,7 @@ def detect_signs(dataloader, img_size, batch_size, conf_thresh, iou_thresh, view
         img_size=img_size,
         batch_size=batch_size,
         view_img=view_img,
-        save_img="src/common/data/gold_std/processed_img",
+        save_img=processing_path,
     )
 
     # Run inference
@@ -153,6 +153,7 @@ if __name__ == '__main__':
     db_path = os.path.join(data_path, config['paths']['db_path'])
     ply_path = os.path.join(data_path, config['paths']['ply_path'])
     pose_path = os.path.join(data_path, config['paths']['pose_path'])
+    processing_path = os.path.join(data_path, config['paths']['processing_dir'])
     pickle_path = os.path.join(data_path, config['paths']['pickle_path'])
     image_dir = os.path.join(data_path, config['paths']['image_dir'])
     depth_image_dir = os.path.join(data_path, config['paths']['depth_image_dir'])
@@ -161,12 +162,12 @@ if __name__ == '__main__':
     data_to_save = {}
 
     # Extract images
-    dataset, dataloader = extract_images(img_size, batch_size, image_dir, depth_image_dir)
+    dataset, dataloader = extract_images(db_path, img_size, batch_size, image_dir, depth_image_dir)
     data_to_save["dataset"] = dataset
     data_to_save["dataloader"] = dataloader
 
     # Detecting signs
-    predictions = detect_signs(dataloader, img_size, batch_size, conf_thresh, iou_thresh, view_img)
+    predictions = detect_signs(dataloader, img_size, batch_size, conf_thresh, iou_thresh, view_img, processing_path)
     data_to_save["predictions"] = predictions
     del dataloader
     gc.collect()
