@@ -16,6 +16,8 @@ from torchvision.transforms.functional import to_pil_image
 sys.path.insert(0, r'../..')
 
 from src.detector.dataset import ImageDataset
+
+from src.utils.config import ConfigLoader
 from src.utils.visualisation import Visualiser
 from src.utils.transformations import VisualisationTransforms
 
@@ -222,44 +224,27 @@ class ProcessPose:
 
 if __name__ == '__main__':
     # Setup argparse config
-    parser = argparse.ArgumentParser(description="Processing Configuration.")
+    parser = argparse.ArgumentParser(description="Processing Configuration")
     parser.add_argument('--data', type=str, help='Data Folder Name.', default="gold_std")
     args = parser.parse_args()
     data_folder = args.data
 
     # Load the configuration
-    os.chdir(r'../..')
+    os.chdir("../..")
     config_path = r"src/common/configs/variables.cfg"
-    config = configparser.ConfigParser()
-    config.read(config_path)
+    cfg = ConfigLoader(config_path, data_folder)
 
-    # Access configuration variables
-    img_size = config.getint('detection', 'img_size')
-    depth_width = config.getint('mapping', 'depth_width')
-    depth_height = config.getint('mapping', 'depth_height')
-
-    # Access paths from the 'paths' section
-    root_dir = config['paths']['root_dir']
-    data_path = os.path.join(root_dir, data_folder)
-    db_path = os.path.join(data_path, config['paths']['db_path'])
-    ply_path = os.path.join(data_path, config['paths']['ply_path'])
-    pose_path = os.path.join(data_path, config['paths']['pose_path'])
-    pickle_path = os.path.join(data_path, config['paths']['pickle_path'])
-    image_dir = os.path.join(data_path, config['paths']['image_dir'])
-    depth_image_dir = os.path.join(data_path, config['paths']['depth_image_dir'])
-    calibration_dir = os.path.join(data_path, config['paths']['calibration_dir'])
-
-    with open(pickle_path, "rb") as file:
+    with open(cfg.pickle_path, "rb") as file:
         variables = pickle.load(file)
 
     pose_df = variables["pose_df"]
     predictions = variables["predictions"]
 
     dataset = ImageDataset(
-        image_dir=image_dir,
-        depth_image_dir=depth_image_dir,
-        calibration_dir=calibration_dir,
-        img_size=img_size,
+        image_dir=cfg.image_dir,
+        depth_image_dir=cfg.depth_image_dir,
+        calibration_dir=cfg.calibration_dir,
+        img_size=cfg.img_size,
         processing=False,
     )
     print(f"Pose: {pose_df}\n\nDepth Images: {len(dataset)}")
@@ -268,9 +253,9 @@ if __name__ == '__main__':
         pose=pose_df,
         dataset=dataset,
         bbox_coordinates=predictions,
-        img_size=img_size,
-        depth_width=depth_width,
-        depth_height=depth_height,
+        img_size=cfg.img_size,
+        depth_width=cfg.depth_width,
+        depth_height=cfg.depth_height,
         display_rgbd=True,
         display_3d=True,
     )
@@ -283,7 +268,7 @@ if __name__ == '__main__':
     }
 
     try:
-        with open(pickle_path, "wb") as file:
+        with open(cfg.pickle_path, "wb") as file:
             pickle.dump(data_to_save, file)
             print("Variables stored to pickle file.", flush=True)
     except Exception as e:

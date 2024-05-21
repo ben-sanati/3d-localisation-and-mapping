@@ -16,6 +16,8 @@ from src.mapper.mapping import Mapping
 from src.mapper.pose_processor import ProcessPose
 from src.mapper.database_query import PoseDataExtractor
 
+from src.utils.config import ConfigLoader
+
 
 sys.path.append(
     os.path.join(
@@ -26,18 +28,12 @@ sys.path.append(
 )
 
 
-def load_config(file_path):
-    config = configparser.ConfigParser()
-    config.read(file_path)
-    return config
-
-def extract_images(db_path, img_size, batch_size, image_dir, depth_image_dir):
+def extract_images(db_path, img_size, batch_size, image_dir, depth_image_dir, calibration_dir):
     print("Extracting frames...", flush=True)
     extractor = ImageExtractor(db_path, depth_image_dir)
     extractor.fetch_data()
 
     # Create dataset
-    print("Extracting frames...", flush=True)
     dataset = ImageDataset(image_dir=image_dir, depth_image_dir=depth_image_dir, calibration_dir=calibration_dir, img_size=img_size)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
@@ -129,52 +125,24 @@ if __name__ == '__main__':
 
     # Load the configuration
     config_path = r"src/common/configs/variables.cfg"
-    config = load_config(config_path)
-
-    # Access configuration variables from the 'detection' section
-    img_size = config.getint('detection', 'img_size')
-    batch_size = config.getint('detection', 'batch_size')
-    conf_thresh = config.getfloat('detection', 'conf_thresh')
-    iou_thresh = config.getfloat('detection', 'iou_thresh')
-    view_img = config.getboolean('detection', 'view_img')
-
-    # Access configuration variables from the 'mapping' section
-    eps = float(config['mapping']['eps'])
-    min_points = config.getint('mapping', 'min_points')
-    preprocess_point_cloud = config.getboolean('mapping', 'preprocess_point_cloud')
-    overlay_pose = config.getboolean('mapping', 'overlay_pose')
-    depth_width = config.getint('mapping', 'depth_width')
-    depth_height = config.getint('mapping', 'depth_height')
-    display_3d = config.getboolean('mapping', 'display_3d')
-
-    # Access paths from the 'paths' section
-    root_dir = config['paths']['root_dir']
-    data_path = os.path.join(root_dir, data_folder)
-    db_path = os.path.join(data_path, config['paths']['db_path'])
-    ply_path = os.path.join(data_path, config['paths']['ply_path'])
-    pose_path = os.path.join(data_path, config['paths']['pose_path'])
-    processing_path = os.path.join(data_path, config['paths']['processing_dir'])
-    pickle_path = os.path.join(data_path, config['paths']['pickle_path'])
-    image_dir = os.path.join(data_path, config['paths']['image_dir'])
-    depth_image_dir = os.path.join(data_path, config['paths']['depth_image_dir'])
-    calibration_dir = os.path.join(data_path, config['paths']['calibration_dir'])
+    cfg = ConfigLoader(config_path, data_folder)
 
     data_to_save = {}
 
     # Extract images
-    dataset, dataloader = extract_images(db_path, img_size, batch_size, image_dir, depth_image_dir)
+    dataset, dataloader = extract_images(cfg.db_path, cfg.img_size, cfg.batch_size, cfg.image_dir, cfg.depth_image_dir, cfg.calibration_dir)
     data_to_save["dataset"] = dataset
     data_to_save["dataloader"] = dataloader
 
     # Detecting signs
-    predictions = detect_signs(dataloader, img_size, batch_size, conf_thresh, iou_thresh, view_img, processing_path)
+    predictions = detect_signs(dataloader, cfg.img_size, cfg.batch_size, cfg.conf_thresh, cfg.iou_thresh, cfg.view_img, cfg.processing_path)
     data_to_save["predictions"] = predictions
     del dataloader
     gc.collect()
 
     # Map detected objects
-    dataset = ImageDataset(image_dir=image_dir, depth_image_dir=depth_image_dir, calibration_dir=calibration_dir, img_size=img_size, processing=False)
-    global_bboxes_data, pose_df = map_detected_objects(pose_path, dataset, predictions, img_size, depth_width, depth_height, display_3d)
+    dataset = ImageDataset(image_dir=cfg.image_dir, depth_image_dir=cfg.depth_image_dir, calibration_dir=cfg.calibration_dir, img_size=cfg.img_size, processing=False)
+    global_bboxes_data, pose_df = map_detected_objects(cfg.pose_path, dataset, predictions, cfg.img_size, cfg.depth_width, cfg.depth_height, cfg.display_3d)
 
     # Plot 3D Global Map (RAM runs out so save as pickle file and run independently instead)
     # plot_map(global_bboxes_data, pose_df, eps, min_points, ply_path, preprocess_point_cloud, overlay_pose)
@@ -184,7 +152,7 @@ if __name__ == '__main__':
     data_to_save["pose_df"] = pose_df
 
     try:
-        with open(pickle_path, "wb") as file:
+        with open(cfg.pickle_path, "wb") as file:
             pickle.dump(data_to_save, file)
             print("Variables stored to pickle file.", flush=True)
     except Exception as e:
