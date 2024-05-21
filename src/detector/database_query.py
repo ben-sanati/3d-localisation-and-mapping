@@ -26,7 +26,7 @@ class ImageExtractor:
 
     def fetch_data(self):
         """
-        Fetch images along with calibration and pose data from the database.
+        Fetch depth images.
         """
         cursor = self.conn.cursor()
         cursor.execute("SELECT Data.image, Data.depth FROM Data JOIN Node ON Data.id = Node.id")

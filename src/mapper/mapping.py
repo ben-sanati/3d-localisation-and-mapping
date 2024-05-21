@@ -80,9 +80,9 @@ class Mapping:
         print("\tMaking mesh...")
         mesh = mesh_methods[algo_method]()
 
-        # # Optimise mesh
-        # print("\tOptimising mesh...")
-        # mesh = self._optimise_mesh(mesh)
+        # Optimise mesh
+        print("\tOptimising mesh...")
+        mesh = self._optimise_mesh(mesh)
 
         # Visualise mesh
         print("\tVisualising mesh...")
@@ -222,7 +222,7 @@ if __name__ == '__main__':
         pose=pose_df,
         eps=eps,
         min_points=min_points,
-        ply_filepath=r"../common/data/gold_std/cloud.ply",
+        ply_filepath=r"../common/data/gold_std/map.ply",
         preprocess_point_cloud=True,
         overlay_pose=True,
     )

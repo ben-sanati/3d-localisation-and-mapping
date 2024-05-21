@@ -28,7 +28,7 @@ class ProcessPose:
         depth_height,
         display_rgbd=False,
         display_3d=False,
-        scale_depth=100,
+        scale_depth=125,
     ):
         """
         Initializes the ProcessPose class with pose data, depth images, and bounding box coordinates.

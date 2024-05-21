@@ -15,8 +15,9 @@ class PoseDataExtractor:
 
     def fetch_data(self):
         df = pd.read_csv(self.pose_path, sep=' ', skiprows=1, header=None)
-        df.columns = ['timestamp', 'tx', 'ty', 'tz', 'qx', 'qy', 'qz', 'qw']
+        df.columns = ['timestamp', 'tx', 'ty', 'tz', 'qx', 'qy', 'qz', 'qw', 'id']
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
+        df = df.drop(['id'], axis=1)
         return df
 
     def plot_pose(self, df):
