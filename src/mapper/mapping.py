@@ -12,6 +12,9 @@ from scipy.spatial.transform import Rotation as R
 sys.path.insert(0, r'../..')
 sys.path.append('/home/phoenix/base/active/3D-Mapping-ATK')
 
+from src.utils.visualisation import Visualiser
+from src.utils.transformations import VisualisationTransforms
+
 
 class Mapping:
     def __init__(
@@ -31,7 +34,6 @@ class Mapping:
         scale_factor = 1.0,
     ):
         self.eps = eps
-        self.pose = pose
         self.min_points = min_points
         self.ply_filepath = ply_filepath
         self.overlay_pose = overlay_pose
@@ -43,6 +45,9 @@ class Mapping:
             [4, 5], [5, 6], [6, 7], [7, 4], # top face
             [0, 4], [1, 5], [2, 6], [3, 7]  # vertical edges
         ]
+
+        # Remove timestamp pose column
+        self.pose = pose.drop(['timestamp'], axis=1)
 
         # Mesh data
         self.radius = radius
@@ -60,6 +65,10 @@ class Mapping:
             print_progress=True,
         )
 
+        # Instance util classes
+        self.visualiser = Visualiser()
+        self.transforms = VisualisationTransforms()
+
     def make_point_cloud(self):
         if self.preprocess_point_cloud:
             # DBSCAN clustering
@@ -68,10 +77,10 @@ class Mapping:
         # Visualise mesh
         self._visualiser(self.pcd)
 
-    def make_mesh(self, algo_method="Poisson"):
-        # if self.preprocess_point_cloud:
-        #     # DBSCAN clustering
-        #     self._clustering()
+    def make_mesh(self):
+        if self.preprocess_point_cloud:
+            # DBSCAN clustering
+            self._clustering()
 
         # Create mesh
         print("\tMaking mesh...")
@@ -132,58 +141,31 @@ class Mapping:
         vis = o3d.visualization.Visualizer()
         vis.create_window()
 
-        print(f"Point Cloud Data: {data}")
-
         # Make mesh/point_cloud
         vis.add_geometry(data)
 
-        # Add bounding boxes to the visualizer
+        # Overlay 3D bboxes onto point cloud
         for frame_index, bbox_list in self.global_bboxes_data.items():
             for bbox in bbox_list:
                 points = [corner for corner in bbox]
-                print(f"Global BBox Coordinates for Frame {frame_index}: {points}")
-
-                line_set = o3d.geometry.LineSet(
-                    points=o3d.utility.Vector3dVector(points),
-                    lines=o3d.utility.Vector2iVector(self.lines)
-                )
-                line_set.paint_uniform_color([1, 0, 0])
+                line_set = self.visualiser.overlay_3d_bbox(points)
                 vis.add_geometry(line_set)
 
         if self.overlay_pose:
-            pose_point_cloud = o3d.geometry.PointCloud()
-            pose_point_cloud.points = o3d.utility.Vector3dVector(self.pose[['tx', 'ty', 'tz']].values)
+            # Overlay pose onto 3d map
+            pose_point_cloud = self.visualiser.overlay_pose(self.pose)
             vis.add_geometry(pose_point_cloud)
 
-            # Get directions (in a right-handed coordinate system, the direction of the camera is the 3rd column of R)
-            directions = np.array([self._quaternion_to_rotation_matrix(q)[0:3, 2] for q in self.pose[['qw', 'qx', 'qy', 'qz']].to_numpy()])
+            # # Get directions (in a right-handed coordinate system, the direction of the camera is the 3rd column of R)
+            directions = self.transforms.get_camera_direction(self.pose)
 
-            lines = []
-            line_colors = []
-            for i, (point, direction) in enumerate(zip(pose_point_cloud.points, directions)):
-                lines.append([i, i + len(pose_point_cloud.points)])
-                if i == 1:
-                    line_colors.append([1, 0, 0])
-                else:
-                    line_colors.append([0, 1, 0])
-
-            # Create line set geometry
-            pose_line_set = o3d.geometry.LineSet(
-                points=o3d.utility.Vector3dVector(np.vstack((pose_point_cloud.points, pose_point_cloud.points + 0.4 * directions))),
-                lines=o3d.utility.Vector2iVector(lines),
-            )
-            pose_line_set.colors = o3d.utility.Vector3dVector(line_colors)
-            vis.add_geometry(pose_line_set)
+            # Get pose camera directions
+            pose_directions = self.visualiser.overlay_pose_directions(pose_point_cloud.points, directions)
+            vis.add_geometry(pose_directions)
 
         # Run the visualizer
         vis.run()
         vis.destroy_window()
-
-    @staticmethod
-    def _quaternion_to_rotation_matrix(q):
-        qw, qx, qy, qz = q
-        rotation = R.from_quat([qx, qy, qz, qw]).as_matrix()
-        return rotation
 
 
 if __name__ == '__main__':

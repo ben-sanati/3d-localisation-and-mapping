@@ -84,7 +84,7 @@ class ProcessPose:
             # Get global coordinate of bounding boxes
             frame_global_bboxes = self._3d_processing(pose_data, rgb_image_cv, depth_image_cv, bboxes, camera_intrinsics)
             global_bboxes[frame_index] = frame_global_bboxes
-            if frame_index == 22:
+            if frame_index == 10:
                 break
 
         return global_bboxes
@@ -98,7 +98,6 @@ class ProcessPose:
         cy = camera_intrinsics["cy"] / depth_to_rgb_scale
 
         # Calculate extrinsics
-        tx, ty, tz, qx, qy, qz, qw = pose_data
         extrinsics = self.transforms.get_transformation_matrix(pose_data)
         extrinsics = np.linalg.inv(extrinsics)
 
@@ -132,7 +131,7 @@ class ProcessPose:
 
         for bbox in bboxes:
             # Define the 2D bbox in 3D space
-            corners = self.transforms.bbox_to_3d(bbox, img_size)
+            corners = self.transforms.bbox_to_3d(bbox, self.img_size)
 
             # Scale bbox coordinates from initial image size to depth image width and height
             scaled_corners = self.transforms.scale_bounding_box(
@@ -147,7 +146,7 @@ class ProcessPose:
             # Get global coordinates and apply a depth buffer for visualisation
             global_corners = [self._transform_to_global(corner, pose_data) for corner in corners_3d]
             visualise_corners_3d = self.transforms.create_3d_bounding_box(global_corners, self.bbox_depth_buffer)
-            frame_global_bboxes.append(global_corners)
+            frame_global_bboxes.append(visualise_corners_3d)
 
             if self.verbose:
                 print(f"\tOriginal 2D Corners: {corners}")

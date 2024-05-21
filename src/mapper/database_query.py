@@ -8,7 +8,8 @@ from scipy.spatial.transform import Rotation as R
 
 sys.path.insert(0, r'../..')
 
-from src.utils.transformations import Transformations
+from src.utils.visualisation import Visualiser
+from src.utils.transformations import VisualisationTransforms
 
 
 class PoseDataExtractor:
@@ -16,7 +17,8 @@ class PoseDataExtractor:
         self.pose_path = pose_path
         self.pcd = o3d.geometry.PointCloud()
 
-        self.transformations = Transformations()
+        self.visualiser = Visualiser()
+        self.transforms = VisualisationTransforms()
 
     def fetch_data(self):
         df = pd.read_csv(self.pose_path, sep=' ', skiprows=1, header=None)
@@ -26,37 +28,27 @@ class PoseDataExtractor:
         return df
 
     def plot_pose(self, df):
+        # Drop timestamp column
+        df = df.drop(["timestamp"], axis=1)
+
         # Create a visualizer object
         self.vis = o3d.visualization.Visualizer()
         self.vis.create_window()
 
         # Get pose points and camera directions
-        self.pcd.points = o3d.utility.Vector3dVector(df[['tx', 'ty', 'tz']].values)
-        colours = np.random.uniform(0, 1, size=(len(df), 3))
-        self.pcd.colors = o3d.utility.Vector3dVector(colours)
+        pose_point_cloud = self.visualiser.overlay_pose(df)
+        directions = self.transforms.get_camera_direction(df)
 
-        # directions = np.array([self._quaternion_to_rotation_matrix(q)[0:3, 2] for q in df[['qw', 'qx', 'qy', 'qz']].to_numpy()])
-        directions = self.transformations.get_camera_direction(df)
+        # Get pose camera directions
+        pose_directions = self.visualiser.overlay_pose_directions(pose_point_cloud.points, directions)
 
-        # Create line set for orientations
-        lines = []
-        line_colors = []
-        for i, (point, direction) in enumerate(zip(self.pcd.points, directions)):
-            lines.append([i, i + len(self.pcd.points)])
-            line_colors.append([0, 1, 0])
-
-        # Create line set geometry
-        line_set = o3d.geometry.LineSet()
-        line_set.points = o3d.utility.Vector3dVector(np.vstack((self.pcd.points, self.pcd.points + 0.4 * directions)))  # Concatenate points for lines
-        line_set.lines = o3d.utility.Vector2iVector(lines)
-        line_set.colors = o3d.utility.Vector3dVector(line_colors)
-
-        o3d.visualization.draw_geometries([self.pcd, line_set])
+        # Visualise pose
+        o3d.visualization.draw_geometries([pose_point_cloud, pose_directions])
         self.vis.destroy_window()
 
 
 if __name__ == "__main__":
-    pose_path = "../common/data/gold_std/poses_id_new.txt"
+    pose_path = "../common/data/gold_std/poses.txt"
 
     extractor = PoseDataExtractor(pose_path)
     df = extractor.fetch_data()
