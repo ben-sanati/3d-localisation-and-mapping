@@ -2,12 +2,15 @@ import os
 import sys
 import pickle
 import psutil
+import argparse
+import configparser
 import numpy as np
 import open3d as o3d
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation as R
 
 sys.path.insert(0, r'../..')
+sys.path.append('/home/phoenix/base/active/3D-Mapping-ATK')
 
 
 class Mapping:
@@ -208,10 +211,38 @@ class Mapping:
 
 
 if __name__ == '__main__':
+    # Setup argparse config
+    parser = argparse.ArgumentParser(description="Processing Configuration.")
+    parser.add_argument('--data', type=str, help='Data Folder Name.', default="gold_std")
+    args = parser.parse_args()
+    data_folder = args.data
+
+    # Load the configuration
+    os.chdir(r'../..')
+    config_path = r"src/common/configs/variables.cfg"
+    config = configparser.ConfigParser()
+    config.read(config_path)
+
+    # Access configuration variables
+    img_size = config.getint('detection', 'img_size')
+    depth_width = config.getint('mapping', 'depth_width')
+    depth_height = config.getint('mapping', 'depth_height')
+
+    # Access paths from the 'paths' section
+    root_dir = config['paths']['root_dir']
+    data_path = os.path.join(root_dir, data_folder)
+    db_path = os.path.join(data_path, config['paths']['db_path'])
+    ply_path = os.path.join(data_path, config['paths']['ply_path'])
+    pose_path = os.path.join(data_path, config['paths']['pose_path'])
+    pickle_path = os.path.join(data_path, config['paths']['pickle_path'])
+    image_dir = os.path.join(data_path, config['paths']['image_dir'])
+    depth_image_dir = os.path.join(data_path, config['paths']['depth_image_dir'])
+    calibration_dir = os.path.join(data_path, config['paths']['calibration_dir'])
+
     eps = 0.02
     min_points = 10
 
-    with open(r"../common/data/gold_std/variables.pkl", "rb") as file:
+    with open(pickle_path, "rb") as file:
         variables = pickle.load(file)
 
     global_bboxes_data = variables["global_bboxes_data"]
@@ -222,7 +253,7 @@ if __name__ == '__main__':
         pose=pose_df,
         eps=eps,
         min_points=min_points,
-        ply_filepath=r"../common/data/gold_std/map.ply",
+        ply_filepath=ply_path,
         preprocess_point_cloud=True,
         overlay_pose=True,
     )

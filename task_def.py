@@ -2,6 +2,7 @@ import os
 import gc
 import sys
 import pickle
+import argparse
 import configparser
 
 import torch
@@ -30,18 +31,19 @@ def load_config(file_path):
     config.read(file_path)
     return config
 
-def extract_images(db_path, img_size, batch_size, save_dir, image_dir, depth_image_dir):
-    print("Extracting frames...", flush=True)
-    extractor = ImageExtractor(db_path, depth_image_dir)
-    extractor.fetch_data()
+def extract_images(img_size, batch_size, image_dir, depth_image_dir):
+    # print("Extracting frames...", flush=True)
+    # extractor = ImageExtractor(db_path, depth_image_dir)
+    # extractor.fetch_data()
 
     # Create dataset
+    print("Extracting frames...", flush=True)
     dataset = ImageDataset(image_dir=image_dir, depth_image_dir=depth_image_dir, calibration_dir=calibration_dir, img_size=img_size)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
     # Garbage collection
-    del extractor
-    gc.collect()
+    # del extractor
+    # gc.collect()
     print("Frames extracted.\n", flush=True)
 
     return dataset, dataloader
@@ -119,6 +121,12 @@ def plot_map(global_bboxes_data, pose_df, eps, min_points, ply_path, preprocess_
 
 
 if __name__ == '__main__':
+    # Setup argparse config
+    parser = argparse.ArgumentParser(description="Processing Configuration")
+    parser.add_argument('--data', type=str, help='Data Folder Name.', default="gold_std")
+    args = parser.parse_args()
+    data_folder = args.data
+
     # Load the configuration
     config_path = r"src/common/configs/variables.cfg"
     config = load_config(config_path)
@@ -140,19 +148,20 @@ if __name__ == '__main__':
     display_3d = config.getboolean('mapping', 'display_3d')
 
     # Access paths from the 'paths' section
-    db_path = config['paths']['db_path']
-    ply_path = config['paths']['ply_path']
-    pose_path = config['paths']['pose_path']
-    pickle_path = config['paths']['pickle_path']
-    save_dir = config['paths']['save_dir']
-    image_dir = config['paths']['image_dir']
-    depth_image_dir = config['paths']['depth_image_dir']
-    calibration_dir = config['paths']['calibration_dir']
+    root_dir = config['paths']['root_dir']
+    data_path = os.path.join(root_dir, data_folder)
+    db_path = os.path.join(data_path, config['paths']['db_path'])
+    ply_path = os.path.join(data_path, config['paths']['ply_path'])
+    pose_path = os.path.join(data_path, config['paths']['pose_path'])
+    pickle_path = os.path.join(data_path, config['paths']['pickle_path'])
+    image_dir = os.path.join(data_path, config['paths']['image_dir'])
+    depth_image_dir = os.path.join(data_path, config['paths']['depth_image_dir'])
+    calibration_dir = os.path.join(data_path, config['paths']['calibration_dir'])
 
     data_to_save = {}
 
     # Extract images
-    dataset, dataloader = extract_images(db_path, img_size, batch_size, save_dir, image_dir, depth_image_dir)
+    dataset, dataloader = extract_images(img_size, batch_size, image_dir, depth_image_dir)
     data_to_save["dataset"] = dataset
     data_to_save["dataloader"] = dataloader
 
