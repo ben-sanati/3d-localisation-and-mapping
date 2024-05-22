@@ -1,17 +1,17 @@
 import sys
-
-sys.path.insert(0, r"../..")  # noqa: E402
-sys.path.append("/home/phoenix/base/active/3D-Mapping-ATK")  # noqa: E402
-
 import argparse
 import os
 import pickle
 
 import numpy as np
 import open3d as o3d
-from src.utils.config import ConfigLoader
-from src.utils.transformations import VisualisationTransforms
-from src.utils.visualisation import Visualiser
+
+sys.path.insert(0, r"../..")
+sys.path.append("/home/phoenix/base/active/3D-Mapping-ATK")
+
+from src.utils.config import ConfigLoader  # noqa
+from src.utils.transformations import VisualisationTransforms  # noqa
+from src.utils.visualisation import Visualiser  # noqa
 
 
 class Mapping:

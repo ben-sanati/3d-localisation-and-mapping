@@ -1,11 +1,12 @@
 import sys
 
-sys.path.insert(0, r"../..")  # noqa: E402
-
 import open3d as o3d
 import pandas as pd
-from src.utils.transformations import VisualisationTransforms
-from src.utils.visualisation import Visualiser
+
+sys.path.insert(0, r"../..")
+
+from src.utils.transformations import VisualisationTransforms  # noqa
+from src.utils.visualisation import Visualiser  # noqa
 
 
 class PoseDataExtractor:

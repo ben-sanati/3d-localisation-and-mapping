@@ -1,7 +1,4 @@
 import sys
-
-sys.path.insert(0, r"../..")  # noqa: E402
-
 import argparse
 import os
 import pickle
@@ -9,10 +6,13 @@ import pickle
 import cv2
 import numpy as np
 import open3d as o3d
-from src.detector.dataset import ImageDataset
-from src.utils.config import ConfigLoader
-from src.utils.transformations import VisualisationTransforms
-from src.utils.visualisation import Visualiser
+
+sys.path.insert(0, r"../..")
+
+from src.detector.dataset import ImageDataset  # noqa
+from src.utils.config import ConfigLoader  # noqa
+from src.utils.transformations import VisualisationTransforms  # noqa
+from src.utils.visualisation import Visualiser  # noqa
 
 
 class ProcessPose:

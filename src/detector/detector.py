@@ -1,8 +1,4 @@
 import sys
-
-sys.path.insert(0, r"src/detector")  # noqa: E402
-sys.path.insert(0, r"src/detector/yolov7")  # noqa: E402
-
 import os
 
 import cv2
@@ -11,8 +7,12 @@ import torch
 import torch.nn as nn
 from numpy import random
 from tqdm import tqdm
-from yolov7.models.experimental import attempt_load
-from yolov7.utils.general import non_max_suppression
+
+sys.path.insert(0, r"src/detector")
+sys.path.insert(0, r"src/detector/yolov7")
+
+from yolov7.models.experimental import attempt_load  # noqa
+from yolov7.utils.general import non_max_suppression  # noqa
 
 
 class ObjectDetector(nn.Module):
