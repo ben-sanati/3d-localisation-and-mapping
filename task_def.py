@@ -131,7 +131,7 @@ def plot_map(
     # Garbage collection
     del mapper
     gc.collect()
-    print("3D Map Generated!", flush=True)
+    print("3D Map Generated!\n", flush=True)
 
 
 if __name__ == "__main__":
@@ -147,8 +147,6 @@ if __name__ == "__main__":
     config_path = r"src/common/configs/variables.cfg"
     cfg = ConfigLoader(config_path, data_folder)
 
-    data_to_save = {}
-
     # Extract images
     dataset, dataloader = extract_images(
         cfg.db_path,
@@ -158,6 +156,7 @@ if __name__ == "__main__":
         cfg.depth_image_dir,
         cfg.calibration_dir,
     )
+    data_to_save = {}
     data_to_save["dataset"] = dataset
     data_to_save["dataloader"] = dataloader
 

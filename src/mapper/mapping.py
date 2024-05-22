@@ -44,7 +44,7 @@ class Mapping:
         self.scale_factor = scale_factor
         self.bbox_depth_buffer = bbox_depth_buffer
 
-        # Remove timestamp pose column
+        # Remove timestamp column
         self.pose = pose.drop(["timestamp"], axis=1)
 
         # Load the point cloud
@@ -146,6 +146,8 @@ class Mapping:
         for frame_index, bbox_list in self.global_bboxes_data.items():
             for bbox in bbox_list:
                 points = [corner for corner in bbox]
+
+                # Turn 2D corners into 3D corners (with a buffer)
                 bbox_3d = self.transforms.create_3d_bounding_box(
                     points, self.bbox_depth_buffer
                 )
