@@ -1,7 +1,7 @@
-import sys
 import argparse
 import os
 import pickle
+import sys
 
 import numpy as np
 import open3d as o3d

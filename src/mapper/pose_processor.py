@@ -1,7 +1,7 @@
-import sys
 import argparse
 import os
 import pickle
+import sys
 
 import cv2
 import numpy as np
@@ -247,8 +247,8 @@ if __name__ == "__main__":
     config_path = r"src/common/configs/variables.cfg"
     cfg = ConfigLoader(config_path, data_folder)
 
-    with open(cfg.pickle_path, "rb") as file:
-        variables = pickle.load(file)
+    with open(cfg.pickle_path, "rb") as read_file:
+        variables = pickle.load(read_file)
 
     pose_df = variables["pose_df"]
     predictions = variables["predictions"]
@@ -280,6 +280,6 @@ if __name__ == "__main__":
         "pose_df": pose_df,
     }
 
-    with open(cfg.pickle_path, "wb") as file:
-        pickle.dump(data_to_save, file)
+    with open(cfg.pickle_path, "wb") as write_file:
+        pickle.dump(data_to_save, write_file)
         print("Variables stored to pickle file.", flush=True)
