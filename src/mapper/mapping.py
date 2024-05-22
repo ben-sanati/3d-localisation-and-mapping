@@ -29,7 +29,9 @@ class Mapping:
         max_nn=30,
         depth=8,
         scale_factor=1.0,
-        bbox_depth_buffer=0.03,  # 3cm
+        bbox_depth_buffer=0.02,  # 3cm
+        area_bbox_min_th=0.001,
+        cam_to_bbox_min_th=0.01,
     ):
         self.eps = eps
         self.min_points = min_points
@@ -44,6 +46,10 @@ class Mapping:
         self.depth = depth
         self.scale_factor = scale_factor
         self.bbox_depth_buffer = bbox_depth_buffer
+
+        # Bbox threshold values
+        self.area_bbox_min_th = area_bbox_min_th
+        self.cam_to_bbox_min_th = cam_to_bbox_min_th
 
         # Remove timestamp column
         self.pose = pose.drop(["timestamp"], axis=1)
@@ -151,20 +157,24 @@ class Mapping:
             camera_position = np.array(pose_data[:3])
             for bbox in bbox_list:
                 bbox_area = self.transforms.calculate_bbox_area(bbox)
-                if bbox_area < 0.001:
+
+                if self._is_within_threshold(bbox, camera_position, self.cam_to_bbox_min_th) or bbox_area < self.area_bbox_min_th:
+                    # Reason for removal
+                    if self._is_within_threshold(bbox, camera_position, self.cam_to_bbox_min_th):
+                        print("\t\tBBox removed. At least one point is within the threshold distance from the camera position.")
+                    elif bbox_area < self.area_bbox_min_th:
+                        print("\t\tBBox removed. BBox area too small.")
                     continue
 
-                # # Map corner to point cloud from camera pose
-                # transformed_bbox = [
-                #     self.transforms.closest_point_to_corner(camera_position, corner, kd_tree, point_cloud_points)
-                #     for corner in bbox
-                # ]
-                # print(f"BBox: {bbox}")
-                # print(f"Transformed BBox: {transformed_bbox}\n\n")
+                # Map corner to point cloud from camera pose
+                transformed_bbox = [
+                    self.transforms.closest_point_to_corner(camera_position, corner, kd_tree, point_cloud_points)
+                    for corner in bbox
+                ]
 
                 # Turn 2D corners into 3D corners (with a buffer)
                 bbox_3d = self.transforms.create_3d_bounding_box(
-                    bbox, self.bbox_depth_buffer
+                    transformed_bbox, self.bbox_depth_buffer
                 )
                 bbox_lines = self.visualiser.overlay_3d_bbox(bbox_3d)
                 vis.add_geometry(bbox_lines)
@@ -186,6 +196,13 @@ class Mapping:
         # Run the visualizer
         vis.run()
         vis.destroy_window()
+
+    @staticmethod
+    def _is_within_threshold(points, camera_position, threshold):
+        """
+        Check if any point in the list is within the threshold distance from the camera position.
+        """
+        return any(np.linalg.norm(point - camera_position) < threshold for point in points)
 
 
 if __name__ == "__main__":
@@ -224,7 +241,7 @@ if __name__ == "__main__":
         min_points=min_points,
         ply_filepath=cfg.ply_path,
         preprocess_point_cloud=True,
-        overlay_pose=True,
+        overlay_pose=False,
     )
 
     # Define the type of map to be made
