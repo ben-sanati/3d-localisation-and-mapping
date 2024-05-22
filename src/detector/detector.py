@@ -14,10 +14,9 @@ from torchvision.transforms import transforms
 from PIL import Image
 from skimage import transform
 
-sys.path.insert(0, r'src/detector/yolov7')
+sys.path.insert(0, r"src/detector/yolov7")
 
 from models.experimental import attempt_load
-from utils.datasets import LoadImages
 from utils.general import non_max_suppression, scale_coords
 
 
@@ -27,7 +26,7 @@ class ObjectDetector(nn.Module):
     To use the object detector call object() (do not use object.forward()). This will return bbox coordinates and the labels for each identified object.
 
     @authors: Benjamin Sanati
-    """    
+    """
     def __init__(
         self,
         conf_thresh,
@@ -36,7 +35,7 @@ class ObjectDetector(nn.Module):
         batch_size,
         view_img,
         save_img,
-        weights=r"src/common/finetuned_models/best.pt"
+        weights=r"src/common/finetuned_models/best.pt",
     ):
         """
         @brief: Initializes the object detector for processing. Sets up object detector once, reducing the total processing time compared to setting up on every inference call.
@@ -58,10 +57,10 @@ class ObjectDetector(nn.Module):
         super(ObjectDetector, self).__init__()
         print(f"\tConfiguring Model...", flush=True)
 
-        sys.stdout = open(os.devnull, 'w')  # block printing momentarily
+        sys.stdout = open(os.devnull, "w")  # block printing momentarily
 
         # Initialize data and hyperparameters (to be made into argparse arguments)
-        self.device = torch.device('cuda:0')
+        self.device = torch.device("cuda:0")
         self.weights = weights
         self.conf_thresh = conf_thresh
         self.iou_thresh = iou_thresh
@@ -80,14 +79,22 @@ class ObjectDetector(nn.Module):
         """
         Load the YOLOv7 model.
         """
-        sys.stdout = open(os.devnull, 'w')  # Temporarily suppress printing
+        sys.stdout = open(os.devnull, "w")  # Temporarily suppress printing
 
         self.model = attempt_load(self.weights, map_location=self.device).half()
         self.stride = int(self.model.stride.max())
-        self.names = self.model.module.names if hasattr(self.model, 'module') else self.model.names
+        self.names = (
+            self.model.module.names
+            if hasattr(self.model, "module")
+            else self.model.names
+        )
 
         # Warm-up the model
-        self.model(torch.zeros(1, 3, self.img_size, self.img_size).to(self.device).type_as(next(self.model.parameters())))
+        self.model(
+            torch.zeros(1, 3, self.img_size, self.img_size)
+            .to(self.device)
+            .type_as(next(self.model.parameters()))
+        )
 
         sys.stdout = sys.__stdout__  # Restore printing
 
@@ -147,17 +154,35 @@ class ObjectDetector(nn.Module):
                 box = self._resize_bbox(box, self.img_size, self.img_size)
 
                 # add bboxes to image
-                cv2.rectangle(img, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), tuple(self.colours[label]), 10)
+                cv2.rectangle(
+                    img,
+                    (int(box[0]), int(box[1])),
+                    (int(box[2]), int(box[3])),
+                    tuple(self.colours[label]),
+                    10,
+                )
 
                 # add filled bboxes with object label above bboxes
                 c1, c2 = (int(box[0]), int(box[1])), (int(box[2]), int(box[3]))
                 line_thickness = 1.1  # line/font thickness
                 tf = max(line_thickness - 1, 1)  # font thickness
-                t_size = cv2.getTextSize(self.names[label], 0, fontScale=line_thickness / 3, thickness=tf)[0]
+                t_size = cv2.getTextSize(
+                    self.names[label], 0, fontScale=line_thickness / 3, thickness=tf
+                )[0]
                 c2 = int(box[0]) + t_size[0], int(box[1]) - t_size[1] - 3
-                cv2.rectangle(img, c1, c2, self.colours[label], -1, cv2.LINE_AA)  # fill the rectangle with the label
-                cv2.putText(img, self.names[label], (c1[0], c1[1] - 2), 0, line_thickness / 3, [225, 255, 255],
-                            thickness=tf, lineType=cv2.LINE_AA)
+                cv2.rectangle(
+                    img, c1, c2, self.colours[label], -1, cv2.LINE_AA
+                )  # fill the rectangle with the label
+                cv2.putText(
+                    img,
+                    self.names[label],
+                    (c1[0], c1[1] - 2),
+                    0,
+                    line_thickness / 3,
+                    [225, 255, 255],
+                    thickness=tf,
+                    lineType=cv2.LINE_AA,
+                )
 
             # Convert to RGB from BGR
             rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -186,8 +211,8 @@ class ObjectDetector(nn.Module):
         return img, pred
 
     def _resize_bbox(self, bbox, image_height, image_width):
-        x_scale = (image_height / self.img_size)
-        y_scale = (image_width / self.img_size)
+        x_scale = image_height / self.img_size
+        y_scale = image_width / self.img_size
 
         bbox[0] *= x_scale
         bbox[1] *= y_scale
@@ -197,14 +222,14 @@ class ObjectDetector(nn.Module):
         return bbox
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     model = ObjectDetector(
         conf_thresh=0.5,
         iou_thresh=0.65,
         img_size=1280,
         view_img=True,
         save_img=r"../common/out/content",
-        weights=r"../common/finetuned_models/best.pt"
+        weights=r"../common/finetuned_models/best.pt",
     )
 
     # run inference

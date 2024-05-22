@@ -29,7 +29,9 @@ class ImageExtractor:
         Fetch depth images.
         """
         cursor = self.conn.cursor()
-        cursor.execute("SELECT Data.image, Data.depth FROM Data JOIN Node ON Data.id = Node.id")
+        cursor.execute(
+            "SELECT Data.image, Data.depth FROM Data JOIN Node ON Data.id = Node.id"
+        )
         for i, (row) in enumerate(cursor.fetchall()):
             # Fetch the depth data
             idx = i + 1
@@ -49,13 +51,16 @@ class ImageExtractor:
         for image_name in os.listdir(directory):
             image_path = os.path.join(directory, image_name)
             image = cv2.imread(image_path)
-            cv2.imshow('Image', image)
+            cv2.imshow("Image", image)
             cv2.waitKey(0)
             break
 
 
-if __name__ == '__main__':
-    db_path = '../common/data/gold_std/data.db'
-    extractor = ImageExtractor(db_path, depth_dir="../common/data/gold_std/db_extract/depth")
+if __name__ == "__main__":
+    db_path = "../common/data/gold_std/data.db"
+    extractor = ImageExtractor(
+        db_path,
+        depth_dir="../common/data/gold_std/db_extract/depth",
+    )
     data = extractor.fetch_data()
     extractor.view_images(data)

@@ -9,8 +9,8 @@ import open3d as o3d
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation as R
 
-sys.path.insert(0, r'../..')
-sys.path.append('/home/phoenix/base/active/3D-Mapping-ATK')
+sys.path.insert(0, r"../..")
+sys.path.append("/home/phoenix/base/active/3D-Mapping-ATK")
 
 from src.utils.visualisation import Visualiser
 from src.utils.transformations import VisualisationTransforms
@@ -30,8 +30,8 @@ class Mapping:
         radius=0.1,
         max_nn=30,
         depth=8,
-        scale_factor = 1.0,
-        bbox_depth_buffer=0.03, # 3cm
+        scale_factor=1.0,
+        bbox_depth_buffer=0.03,  # 3cm
     ):
         self.eps = eps
         self.min_points = min_points
@@ -48,7 +48,7 @@ class Mapping:
         self.bbox_depth_buffer = bbox_depth_buffer
 
         # Remove timestamp pose column
-        self.pose = pose.drop(['timestamp'], axis=1)
+        self.pose = pose.drop(["timestamp"], axis=1)
 
         # Load the point cloud
         self.pcd = o3d.io.read_point_cloud(
@@ -92,7 +92,11 @@ class Mapping:
         with o3d.utility.VerbosityContextManager(
             o3d.utility.VerbosityLevel.Debug
         ) as cm:
-            labels = np.array(self.pcd.cluster_dbscan(eps=self.eps, min_points=self.min_points, print_progress=True))
+            labels = np.array(
+                self.pcd.cluster_dbscan(
+                    eps=self.eps, min_points=self.min_points, print_progress=True
+                )
+            )
 
         # Calculate the number of point clouds
         max_label = labels.max()
@@ -107,10 +111,16 @@ class Mapping:
 
     def _poisson_surface_recon(self):
         # Estimate normals
-        self.pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=self.radius, max_nn=self.max_nn))
+        self.pcd.estimate_normals(
+            search_param=o3d.geometry.KDTreeSearchParamHybrid(
+                radius=self.radius, max_nn=self.max_nn
+            )
+        )
 
         # Apply Poisson surface reconstruction
-        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(self.pcd, depth=self.depth, scale=self.scale_factor)
+        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+            self.pcd, depth=self.depth, scale=self.scale_factor
+        )
 
         return mesh
 
@@ -141,7 +151,9 @@ class Mapping:
         for frame_index, bbox_list in self.global_bboxes_data.items():
             for bbox in bbox_list:
                 points = [corner for corner in bbox]
-                bbox_3d = self.transforms.create_3d_bounding_box(points, self.bbox_depth_buffer)
+                bbox_3d = self.transforms.create_3d_bounding_box(
+                    points, self.bbox_depth_buffer
+                )
                 bbox_lines = self.visualiser.overlay_3d_bbox(bbox_3d)
                 vis.add_geometry(bbox_lines)
 
@@ -154,7 +166,9 @@ class Mapping:
             directions = self.transforms.get_camera_direction(self.pose)
 
             # Get pose camera directions
-            pose_directions = self.visualiser.overlay_pose_directions(pose_point_cloud.points, directions)
+            pose_directions = self.visualiser.overlay_pose_directions(
+                pose_point_cloud.points, directions
+            )
             vis.add_geometry(pose_directions)
 
         # Run the visualizer
@@ -162,10 +176,12 @@ class Mapping:
         vis.destroy_window()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Setup argparse config
     parser = argparse.ArgumentParser(description="Processing Configuration.")
-    parser.add_argument('--data', type=str, help='Data Folder Name.', default="gold_std")
+    parser.add_argument(
+        "--data", type=str, help="Data Folder Name.", default="gold_std"
+    )
     args = parser.parse_args()
     data_folder = args.data
 

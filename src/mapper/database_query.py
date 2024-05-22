@@ -6,7 +6,7 @@ import numpy as np
 import open3d as o3d
 from scipy.spatial.transform import Rotation as R
 
-sys.path.insert(0, r'../..')
+sys.path.insert(0, r"../..")
 
 from src.utils.visualisation import Visualiser
 from src.utils.transformations import VisualisationTransforms
@@ -21,10 +21,10 @@ class PoseDataExtractor:
         self.transforms = VisualisationTransforms()
 
     def fetch_data(self):
-        df = pd.read_csv(self.pose_path, sep=' ', skiprows=1, header=None)
-        df.columns = ['timestamp', 'tx', 'ty', 'tz', 'qx', 'qy', 'qz', 'qw', 'id']
-        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
-        df = df.drop(['id'], axis=1)
+        df = pd.read_csv(self.pose_path, sep=" ", skiprows=1, header=None)
+        df.columns = ["timestamp", "tx", "ty", "tz", "qx", "qy", "qz", "qw", "id"]
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="s")
+        df = df.drop(["id"], axis=1)
         return df
 
     def plot_pose(self, df):
@@ -40,7 +40,9 @@ class PoseDataExtractor:
         directions = self.transforms.get_camera_direction(df)
 
         # Get pose camera directions
-        pose_directions = self.visualiser.overlay_pose_directions(pose_point_cloud.points, directions)
+        pose_directions = self.visualiser.overlay_pose_directions(
+            pose_point_cloud.points, directions
+        )
 
         # Visualise pose
         o3d.visualization.draw_geometries([pose_point_cloud, pose_directions])

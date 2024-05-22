@@ -13,7 +13,7 @@ from scipy.spatial import KDTree
 from scipy.spatial.transform import Rotation as R
 from torchvision.transforms.functional import to_pil_image
 
-sys.path.insert(0, r'../..')
+sys.path.insert(0, r"../..")
 
 from src.detector.dataset import ImageDataset
 
@@ -71,27 +71,34 @@ class ProcessPose:
         for frame_index, bboxes in self.bbox_coordinates.items():
             # Acquire images
             rgb_tensor, depth_tensor, camera_intrinsics = self.dataset[frame_index]
-            rgb_image_cv, depth_image_cv, depth_image_norm_cv = self.visualiser.parse_images(rgb_tensor, depth_tensor)
+            (
+                rgb_image_cv,
+                depth_image_cv,
+                depth_image_norm_cv,
+            ) = self.visualiser.parse_images(rgb_tensor, depth_tensor)
 
             # Display the RGB+D images
             if self.display_rgbd:
                 self.visualiser.display_imgs(
-                    cv2.cvtColor(rgb_image_cv, cv2.COLOR_RGB2BGR),
-                    depth_image_norm_cv
+                    cv2.cvtColor(rgb_image_cv, cv2.COLOR_RGB2BGR), depth_image_norm_cv
                 )
 
             # Get pose information for the image
             pose_data = self.pose.iloc[frame_index][1:].to_numpy()
 
             # Get global coordinate of bounding boxes
-            frame_global_bboxes = self._3d_processing(pose_data, rgb_image_cv, depth_image_cv, bboxes, camera_intrinsics)
+            frame_global_bboxes = self._3d_processing(
+                pose_data, rgb_image_cv, depth_image_cv, bboxes, camera_intrinsics
+            )
             global_bboxes[frame_index] = frame_global_bboxes
             if frame_index == 10:
                 break
 
         return global_bboxes
 
-    def _3d_processing(self, pose_data, rgb_image_cv, depth_image_cv, bboxes, camera_intrinsics):
+    def _3d_processing(
+        self, pose_data, rgb_image_cv, depth_image_cv, bboxes, camera_intrinsics
+    ):
         # Get camera intrinsics
         depth_to_rgb_scale = camera_intrinsics["image_width"] / self.depth_width
         fx = camera_intrinsics["fx"] / depth_to_rgb_scale
@@ -107,7 +114,10 @@ class ProcessPose:
         intrinsics = o3d.camera.PinholeCameraIntrinsic(
             camera_intrinsics["image_width"],
             camera_intrinsics["image_height"],
-            fx, fy, cx, cy,
+            fx,
+            fy,
+            cx,
+            cy,
         )
 
         # Generate RGBD image and point cloud
@@ -139,15 +149,22 @@ class ProcessPose:
             scaled_corners = self.transforms.scale_bounding_box(
                 corners,
                 (self.img_size, self.img_size),
-                (self.depth_width, self.depth_height)
+                (self.depth_width, self.depth_height),
             )
 
             # Generate 3D corners with z-values from median over bbox (x, y) range
-            corners_3d = [self._depth_to_3d(int(x), int(y), depth_image_cv, fx, fy, cx, cy) for x, y in scaled_corners]
+            corners_3d = [
+                self._depth_to_3d(int(x), int(y), depth_image_cv, fx, fy, cx, cy)
+                for x, y in scaled_corners
+            ]
 
             # Get global coordinates and apply a depth buffer for visualisation
-            global_corners = [self._transform_to_global(corner, pose_data) for corner in corners_3d]
-            visualise_corners_3d = self.transforms.create_3d_bounding_box(global_corners, self.bbox_depth_buffer)
+            global_corners = [
+                self._transform_to_global(corner, pose_data) for corner in corners_3d
+            ]
+            visualise_corners_3d = self.transforms.create_3d_bounding_box(
+                global_corners, self.bbox_depth_buffer
+            )
             frame_global_bboxes.append(global_corners)
 
             if self.verbose:
@@ -222,10 +239,12 @@ class ProcessPose:
         return global_point
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Setup argparse config
     parser = argparse.ArgumentParser(description="Processing Configuration")
-    parser.add_argument('--data', type=str, help='Data Folder Name.', default="gold_std")
+    parser.add_argument(
+        "--data", type=str, help="Data Folder Name.", default="gold_std"
+    )
     args = parser.parse_args()
     data_folder = args.data
 

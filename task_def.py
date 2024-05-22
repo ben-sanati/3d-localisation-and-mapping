@@ -28,23 +28,33 @@ sys.path.append(
 )
 
 
-def extract_images(db_path, img_size, batch_size, image_dir, depth_image_dir, calibration_dir):
+def extract_images(
+    db_path, img_size, batch_size, image_dir, depth_image_dir, calibration_dir
+):
     print("Extracting frames...", flush=True)
     extractor = ImageExtractor(db_path, depth_image_dir)
     extractor.fetch_data()
 
     # Create dataset
-    dataset = ImageDataset(image_dir=image_dir, depth_image_dir=depth_image_dir, calibration_dir=calibration_dir, img_size=img_size)
+    dataset = ImageDataset(
+        image_dir=image_dir,
+        depth_image_dir=depth_image_dir,
+        calibration_dir=calibration_dir,
+        img_size=img_size,
+    )
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
     # Garbage collection
-    # del extractor
-    # gc.collect()
+    del extractor
+    gc.collect()
     print("Frames extracted.\n", flush=True)
 
     return dataset, dataloader
 
-def detect_signs(dataloader, img_size, batch_size, conf_thresh, iou_thresh, view_img, processing_path):
+
+def detect_signs(
+    dataloader, img_size, batch_size, conf_thresh, iou_thresh, view_img, processing_path
+):
     # Instance model
     print("Detecting Signs...", flush=True)
     model = ObjectDetector(
@@ -67,7 +77,10 @@ def detect_signs(dataloader, img_size, batch_size, conf_thresh, iou_thresh, view
 
     return predictions
 
-def map_detected_objects(pose_path, dataset, predictions, img_size, depth_width, depth_height, display_3d):
+
+def map_detected_objects(
+    pose_path, dataset, predictions, img_size, depth_width, depth_height, display_3d
+):
     # Get the node information from the table
     print("Extracting Pose Information...", flush=True)
     extractor = PoseDataExtractor(pose_path)
@@ -96,7 +109,16 @@ def map_detected_objects(pose_path, dataset, predictions, img_size, depth_width,
 
     return global_bboxes_data, pose_df
 
-def plot_map(global_bboxes_data, pose_df, eps, min_points, ply_path, preprocess_point_cloud, overlay_pose):
+
+def plot_map(
+    global_bboxes_data,
+    pose_df,
+    eps,
+    min_points,
+    ply_path,
+    preprocess_point_cloud,
+    overlay_pose,
+):
     # Map the bounding box information to the global 3D map
     print("Generating 3D Map...", flush=True)
     mapper = Mapping(
@@ -116,10 +138,12 @@ def plot_map(global_bboxes_data, pose_df, eps, min_points, ply_path, preprocess_
     print("3D Map Generated!", flush=True)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Setup argparse config
     parser = argparse.ArgumentParser(description="Processing Configuration")
-    parser.add_argument('--data', type=str, help='Data Folder Name.', default="gold_std")
+    parser.add_argument(
+        "--data", type=str, help="Data Folder Name.", default="gold_std"
+    )
     args = parser.parse_args()
     data_folder = args.data
 
@@ -130,22 +154,59 @@ if __name__ == '__main__':
     data_to_save = {}
 
     # Extract images
-    dataset, dataloader = extract_images(cfg.db_path, cfg.img_size, cfg.batch_size, cfg.image_dir, cfg.depth_image_dir, cfg.calibration_dir)
+    dataset, dataloader = extract_images(
+        cfg.db_path,
+        cfg.img_size,
+        cfg.batch_size,
+        cfg.image_dir,
+        cfg.depth_image_dir,
+        cfg.calibration_dir,
+    )
     data_to_save["dataset"] = dataset
     data_to_save["dataloader"] = dataloader
 
     # Detecting signs
-    predictions = detect_signs(dataloader, cfg.img_size, cfg.batch_size, cfg.conf_thresh, cfg.iou_thresh, cfg.view_img, cfg.processing_path)
+    predictions = detect_signs(
+        dataloader,
+        cfg.img_size,
+        cfg.batch_size,
+        cfg.conf_thresh,
+        cfg.iou_thresh,
+        cfg.view_img,
+        cfg.processing_path,
+    )
     data_to_save["predictions"] = predictions
     del dataloader
     gc.collect()
 
     # Map detected objects
-    dataset = ImageDataset(image_dir=cfg.image_dir, depth_image_dir=cfg.depth_image_dir, calibration_dir=cfg.calibration_dir, img_size=cfg.img_size, processing=False)
-    global_bboxes_data, pose_df = map_detected_objects(cfg.pose_path, dataset, predictions, cfg.img_size, cfg.depth_width, cfg.depth_height, cfg.display_3d)
+    dataset = ImageDataset(
+        image_dir=cfg.image_dir,
+        depth_image_dir=cfg.depth_image_dir,
+        calibration_dir=cfg.calibration_dir,
+        img_size=cfg.img_size,
+        processing=False,
+    )
+    global_bboxes_data, pose_df = map_detected_objects(
+        cfg.pose_path,
+        dataset,
+        predictions,
+        cfg.img_size,
+        cfg.depth_width,
+        cfg.depth_height,
+        cfg.display_3d,
+    )
 
     # # Plot 3D Global Map
-    # plot_map(global_bboxes_data, pose_df, cfg.eps, cfg.min_points, cfg.ply_path, cfg.preprocess_point_cloud, cfg.overlay_pose)
+    # plot_map(
+    #     global_bboxes_data,
+    #     pose_df,
+    #     cfg.eps,
+    #     cfg.min_points,
+    #     cfg.ply_path,
+    #     cfg.preprocess_point_cloud,
+    #     cfg.overlay_pose
+    # )
 
     # Save as pickle file and load later to use in another script
     data_to_save["global_bboxes_data"] = global_bboxes_data
