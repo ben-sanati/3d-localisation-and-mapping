@@ -280,9 +280,6 @@ if __name__ == "__main__":
         "pose_df": pose_df,
     }
 
-    try:
-        with open(cfg.pickle_path, "wb") as file:
-            pickle.dump(data_to_save, file)
-            print("Variables stored to pickle file.", flush=True)
-    except Exception as e:
-        print(f"Failed to write to file: {e}")
+    with open(cfg.pickle_path, "wb") as file:
+        pickle.dump(data_to_save, file)
+        print("Variables stored to pickle file.", flush=True)

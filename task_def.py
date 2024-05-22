@@ -14,7 +14,6 @@ from src.mapper.pose_processor import ProcessPose
 from src.utils.config import ConfigLoader
 from torch.utils.data import DataLoader
 
-
 sys.path.append(
     os.path.join(
         os.path.dirname(__file__),

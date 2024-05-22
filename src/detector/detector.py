@@ -11,7 +11,6 @@ import torch
 import torch.nn as nn
 from numpy import random
 from tqdm import tqdm
-
 from yolov7.models.experimental import attempt_load
 from yolov7.utils.general import non_max_suppression
 
