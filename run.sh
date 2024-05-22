@@ -10,4 +10,5 @@ while [[ "$#" -gt 0 ]]; do
     esac
     shift
 done
+
 python3 "task_def.py" --data "$DATA" > "$LOGS/debug.out"
