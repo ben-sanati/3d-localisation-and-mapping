@@ -148,7 +148,7 @@ class ProcessPose:
             # Get global coordinates and apply a depth buffer for visualisation
             global_corners = [self._transform_to_global(corner, pose_data) for corner in corners_3d]
             visualise_corners_3d = self.transforms.create_3d_bounding_box(global_corners, self.bbox_depth_buffer)
-            frame_global_bboxes.append(visualise_corners_3d)
+            frame_global_bboxes.append(global_corners)
 
             if self.verbose:
                 print(f"\tOriginal 2D Corners: {corners}")

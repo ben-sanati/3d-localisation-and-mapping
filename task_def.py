@@ -92,7 +92,7 @@ def map_detected_objects(pose_path, dataset, predictions, img_size, depth_width,
     # Garbage collection
     del pose_processing
     gc.collect()
-    print("Pose Processed!", flush=True)
+    print("Pose Processed!\n", flush=True)
 
     return global_bboxes_data, pose_df
 
@@ -144,8 +144,8 @@ if __name__ == '__main__':
     dataset = ImageDataset(image_dir=cfg.image_dir, depth_image_dir=cfg.depth_image_dir, calibration_dir=cfg.calibration_dir, img_size=cfg.img_size, processing=False)
     global_bboxes_data, pose_df = map_detected_objects(cfg.pose_path, dataset, predictions, cfg.img_size, cfg.depth_width, cfg.depth_height, cfg.display_3d)
 
-    # Plot 3D Global Map (RAM runs out so save as pickle file and run independently instead)
-    # plot_map(global_bboxes_data, pose_df, eps, min_points, ply_path, preprocess_point_cloud, overlay_pose)
+    # # Plot 3D Global Map
+    # plot_map(global_bboxes_data, pose_df, cfg.eps, cfg.min_points, cfg.ply_path, cfg.preprocess_point_cloud, cfg.overlay_pose)
 
     # Save as pickle file and load later to use in another script
     data_to_save["global_bboxes_data"] = global_bboxes_data

@@ -30,9 +30,8 @@ class Mapping:
         radius=0.1,
         max_nn=30,
         depth=8,
-        alpha=0.02,
-        radii = [0.005, 0.01, 0.02, 0.04],
         scale_factor = 1.0,
+        bbox_depth_buffer=0.03, # 3cm
     ):
         self.eps = eps
         self.min_points = min_points
@@ -41,22 +40,15 @@ class Mapping:
         self.global_bboxes_data = global_bboxes_data
         self.preprocess_point_cloud = preprocess_point_cloud
 
-        self.lines = [
-            [0, 1], [1, 2], [2, 3], [3, 0], # bottom face
-            [4, 5], [5, 6], [6, 7], [7, 4], # top face
-            [0, 4], [1, 5], [2, 6], [3, 7]  # vertical edges
-        ]
-
-        # Remove timestamp pose column
-        self.pose = pose.drop(['timestamp'], axis=1)
-
         # Mesh data
         self.radius = radius
         self.max_nn = max_nn
         self.depth = depth
-        self.alpha = alpha
-        self.radii = radii
         self.scale_factor = scale_factor
+        self.bbox_depth_buffer = bbox_depth_buffer
+
+        # Remove timestamp pose column
+        self.pose = pose.drop(['timestamp'], axis=1)
 
         # Load the point cloud
         self.pcd = o3d.io.read_point_cloud(
@@ -149,8 +141,9 @@ class Mapping:
         for frame_index, bbox_list in self.global_bboxes_data.items():
             for bbox in bbox_list:
                 points = [corner for corner in bbox]
-                line_set = self.visualiser.overlay_3d_bbox(points)
-                vis.add_geometry(line_set)
+                bbox_3d = self.transforms.create_3d_bounding_box(points, self.bbox_depth_buffer)
+                bbox_lines = self.visualiser.overlay_3d_bbox(bbox_3d)
+                vis.add_geometry(bbox_lines)
 
         if self.overlay_pose:
             # Overlay pose onto 3d map
