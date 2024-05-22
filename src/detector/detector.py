@@ -1,7 +1,7 @@
 import sys
 
-sys.path.insert(0, r"src/detector") # noqa: E402
-sys.path.insert(0, r"src/detector/yolov7") # noqa: E402
+sys.path.insert(0, r"src/detector")  # noqa: E402
+sys.path.insert(0, r"src/detector/yolov7")  # noqa: E402
 
 import os
 

@@ -1,6 +1,6 @@
 import sys
 
-sys.path.insert(0, r"../..") # noqa: E402
+sys.path.insert(0, r"../..")  # noqa: E402
 
 import open3d as o3d
 import pandas as pd

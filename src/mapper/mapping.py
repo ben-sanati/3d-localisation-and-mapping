@@ -1,7 +1,7 @@
 import sys
 
-sys.path.insert(0, r"../..") # noqa: E402
-sys.path.append("/home/phoenix/base/active/3D-Mapping-ATK") # noqa: E402
+sys.path.insert(0, r"../..")  # noqa: E402
+sys.path.append("/home/phoenix/base/active/3D-Mapping-ATK")  # noqa: E402
 
 import argparse
 import os
