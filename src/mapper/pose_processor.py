@@ -1,25 +1,18 @@
-import os
-import sys
-import cv2
-import pickle
 import argparse
-import configparser
-import numpy as np
-import pandas as pd
-from PIL import Image, ImageDraw, ImageFont
+import os
+import pickle
+import sys
 
+import cv2
+import numpy as np
 import open3d as o3d
-from scipy.spatial import KDTree
-from scipy.spatial.transform import Rotation as R
-from torchvision.transforms.functional import to_pil_image
 
 sys.path.insert(0, r"../..")
 
 from src.detector.dataset import ImageDataset
-
 from src.utils.config import ConfigLoader
-from src.utils.visualisation import Visualiser
 from src.utils.transformations import VisualisationTransforms
+from src.utils.visualisation import Visualiser
 
 
 class ProcessPose:
@@ -47,7 +40,8 @@ class ProcessPose:
             img_size (int): Size of the images.
             depth_width (int): Width of the depth images.
             depth_height (int): Height of the depth images.
-            depth_scale (int): Float, scale factor for depth (e.g., 100.0 if depth is in centimeters and you need meters)
+            depth_scale (int): Float, scale factor for depth (e.g., 100.0 if depth is in centimeters and you
+                            need meters)
         """
         self.pose = pose
         self.dataset = dataset

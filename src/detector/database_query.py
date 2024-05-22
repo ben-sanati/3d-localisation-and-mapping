@@ -1,6 +1,7 @@
 import os
-import cv2
 import sqlite3
+
+import cv2
 import numpy as np
 
 
@@ -60,7 +61,7 @@ if __name__ == "__main__":
     db_path = "../common/data/gold_std/data.db"
     extractor = ImageExtractor(
         db_path,
-        depth_dir="../common/data/gold_std/db_extract/depth",
+        depth_dir="../common/data/gold_std/rtabmap_extract/data_depth",
     )
-    data = extractor.fetch_data()
-    extractor.view_images(data)
+    extractor.fetch_data()
+    extractor.view_images("../common/data/gold_std/rtabmap_extract/data_rgb")

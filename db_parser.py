@@ -1,7 +1,7 @@
 import sqlite3
+
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-
 
 if __name__ == "__main__":
     db_file = "src/common/data/gold_std/data.db"
@@ -60,17 +60,20 @@ if __name__ == "__main__":
     l1 = link[0]
     print(f"Link ({len(link)}): {l1[:3]} = (id, map_id, weight)")
     with open("link.txt", "w") as file:
-        for l in link:
-            file.write(f"Link ({len(link)}): {l[:3]} = (id, map_id, weight)\n")
+        for li in link:
+            file.write(f"Link ({len(link)}): {li[:3]} = (id, map_id, weight)\n")
 
     cursor.execute("SELECT * FROM Feature")
     feature = cursor.fetchall()
     f1 = feature[0]
     print(
-        f"Feature ({len(feature)}): {f1[:-1]} = ('node_id', 'word_id', 'pos_x', 'pos_y', 'size', 'dir', 'response', 'octave', 'depth_x', 'depth_y', 'depth_z', 'descriptor_size')"
+        f"Feature ({len(feature)}): {f1[:-1]} = ('node_id', 'word_id', 'pos_x', 'pos_y', 'size', "
+        "'dir', 'response', 'octave', 'depth_x', 'depth_y', 'depth_z', 'descriptor_size')"
     )
     with open("feature.txt", "w") as file:
         for f in feature:
             file.write(
-                f"Feature ({len(feature)}): {f[:-1]} = ('node_id', 'word_id', 'pos_x', 'pos_y', 'size', 'dir', 'response', 'octave', 'depth_x', 'depth_y', 'depth_z', 'descriptor_size')"
+                f"Feature ({len(feature)}): {f[:-1]} = ('node_id', 'word_id', 'pos_x', 'pos_y', "
+                "'size', 'dir', 'response', 'octave', 'depth_x', 'depth_y', 'depth_z', "
+                "'descriptor_size')"
             )

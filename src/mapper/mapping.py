@@ -1,20 +1,16 @@
-import os
-import sys
-import pickle
-import psutil
 import argparse
-import configparser
 import numpy as np
 import open3d as o3d
-import matplotlib.pyplot as plt
-from scipy.spatial.transform import Rotation as R
+import os
+import pickle
+import sys
 
 sys.path.insert(0, r"../..")
 sys.path.append("/home/phoenix/base/active/3D-Mapping-ATK")
 
-from src.utils.visualisation import Visualiser
 from src.utils.transformations import VisualisationTransforms
 from src.utils.config import ConfigLoader
+from src.utils.visualisation import Visualiser
 
 
 class Mapping:
@@ -91,7 +87,7 @@ class Mapping:
         # Execute DBSCAN algorithm
         with o3d.utility.VerbosityContextManager(
             o3d.utility.VerbosityLevel.Debug
-        ) as cm:
+        ):
             labels = np.array(
                 self.pcd.cluster_dbscan(
                     eps=self.eps, min_points=self.min_points, print_progress=True

@@ -1,8 +1,8 @@
 import os
-import yaml
-from PIL import Image
-from natsort import natsorted
 
+import yaml
+from natsort import natsorted
+from PIL import Image
 from torch.utils.data import Dataset
 from torchvision.transforms import transforms
 
@@ -30,7 +30,7 @@ class ImageDataset(Dataset):
         paired_filenames = []
         for image_filename in self.image_filenames:
             # Assuming the naming convention matches except for the extension and directory
-            depth_filename = image_filename.replace('.jpg', '.png')
+            depth_filename = image_filename.replace(".jpg", ".png")
             if depth_filename in self.depth_image_filenames:
                 paired_filenames.append((image_filename, depth_filename))
 
