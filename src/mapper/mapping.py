@@ -159,8 +159,8 @@ class Mapping:
                 bbox_area = self.transforms.calculate_bbox_area(bbox)
 
                 if (
-                    self._is_within_threshold(bbox, camera_position, self.cam_to_bbox_min_th)  # noqa
-                    or bbox_area < self.area_bbox_min_th
+                    self._is_within_threshold(bbox, camera_position, self.cam_to_bbox_min_th) or  # noqa
+                    bbox_area < self.area_bbox_min_th
                 ):
                     # Reason for removal
                     if self._is_within_threshold(bbox, camera_position, self.cam_to_bbox_min_th):  # noqa
