@@ -1,4 +1,6 @@
 import sys
+
+sys.path.insert(0, r"src/detector")
 sys.path.insert(0, r"src/detector/yolov7")
 
 import os
@@ -10,8 +12,8 @@ import torch.nn as nn
 from numpy import random
 from tqdm import tqdm
 
-from models.experimental import attempt_load
-from utils.general import non_max_suppression
+from yolov7.models.experimental import attempt_load
+from yolov7.utils.general import non_max_suppression
 
 
 class ObjectDetector(nn.Module):
