@@ -191,16 +191,16 @@ if __name__ == "__main__":
         cfg.display_3d,
     )
 
-    # Plot 3D Global Map
-    plot_map(
-        global_bboxes_data,
-        pose_df,
-        cfg.eps,
-        cfg.min_points,
-        cfg.ply_path,
-        cfg.preprocess_point_cloud,
-        cfg.overlay_pose,
-    )
+    # # Plot 3D Global Map
+    # plot_map(
+    #     global_bboxes_data,
+    #     pose_df,
+    #     cfg.eps,
+    #     cfg.min_points,
+    #     cfg.ply_path,
+    #     cfg.preprocess_point_cloud,
+    #     cfg.overlay_pose,
+    # )
 
     # Save as pickle file and load later to use in another script
     data_to_save["global_bboxes_data"] = global_bboxes_data

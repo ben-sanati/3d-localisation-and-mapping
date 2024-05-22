@@ -184,7 +184,7 @@ class Mapping:
             pose_point_cloud = self.visualiser.overlay_pose(self.pose)
             vis.add_geometry(pose_point_cloud)
 
-            # # Get directions (in a right-handed coordinate system, the direction of the camera is the 3rd column of R)
+            # # Get directions
             directions = self.transforms.get_camera_direction(self.pose)
 
             # Get pose camera directions
