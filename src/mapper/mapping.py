@@ -158,17 +158,28 @@ class Mapping:
             for bbox in bbox_list:
                 bbox_area = self.transforms.calculate_bbox_area(bbox)
 
-                if self._is_within_threshold(bbox, camera_position, self.cam_to_bbox_min_th) or bbox_area < self.area_bbox_min_th:
+                if (
+                    self._is_within_threshold(
+                        bbox, camera_position, self.cam_to_bbox_min_th
+                    )
+                    or bbox_area < self.area_bbox_min_th
+                ):
                     # Reason for removal
-                    if self._is_within_threshold(bbox, camera_position, self.cam_to_bbox_min_th):
-                        print("\t\tBBox removed. At least one point is within the threshold distance from the camera position.")
+                    if self._is_within_threshold(
+                        bbox, camera_position, self.cam_to_bbox_min_th
+                    ):
+                        print(
+                            "\t\tBBox removed. At least one point within threshold distance from camera."
+                        )
                     elif bbox_area < self.area_bbox_min_th:
                         print("\t\tBBox removed. BBox area too small.")
                     continue
 
                 # Map corner to point cloud from camera pose
                 transformed_bbox = [
-                    self.transforms.closest_point_to_corner(camera_position, corner, kd_tree, point_cloud_points)
+                    self.transforms.closest_point_to_corner(
+                        camera_position, corner, kd_tree, point_cloud_points
+                    )
                     for corner in bbox
                 ]
 
@@ -202,7 +213,9 @@ class Mapping:
         """
         Check if any point in the list is within the threshold distance from the camera position.
         """
-        return any(np.linalg.norm(point - camera_position) < threshold for point in points)
+        return any(
+            np.linalg.norm(point - camera_position) < threshold for point in points
+        )
 
 
 if __name__ == "__main__":
@@ -212,7 +225,10 @@ if __name__ == "__main__":
         "--data", type=str, help="Data Folder Name.", default="gold_std"
     )
     parser.add_argument(
-        "--model", type=str, help="The Type of 3D Model to Create [mesh or pc]", default="mesh"
+        "--model",
+        type=str,
+        help="The Type of 3D Model to Create [mesh or pc]",
+        default="mesh",
     )
     args = parser.parse_args()
     data_folder = args.data
