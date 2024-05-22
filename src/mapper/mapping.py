@@ -5,6 +5,7 @@ import sys
 
 import numpy as np
 import open3d as o3d
+from scipy.spatial import KDTree
 
 sys.path.insert(0, r"../..")
 sys.path.append("/home/phoenix/base/active/3D-Mapping-ATK")
@@ -17,8 +18,8 @@ from src.utils.visualisation import Visualiser  # noqa
 class Mapping:
     def __init__(
         self,
-        global_bboxes_data=None,
-        pose=None,
+        global_bboxes_data,
+        pose,
         eps=0.04,
         min_points=10,
         ply_filepath=r"../common/data/gold_std/cloud.ply",
@@ -143,13 +144,27 @@ class Mapping:
         vis.add_geometry(data)
 
         # Overlay 3D bboxes onto point cloud
+        point_cloud_points = np.asarray(self.pcd.points)
+        kd_tree = KDTree(point_cloud_points)
         for frame_index, bbox_list in self.global_bboxes_data.items():
+            pose_data = self.pose.iloc[frame_index]
+            camera_position = np.array(pose_data[:3])
             for bbox in bbox_list:
-                points = [corner for corner in bbox]
+                bbox_area = self.transforms.calculate_bbox_area(bbox)
+                if bbox_area < 0.001:
+                    continue
+
+                # # Map corner to point cloud from camera pose
+                # transformed_bbox = [
+                #     self.transforms.closest_point_to_corner(camera_position, corner, kd_tree, point_cloud_points)
+                #     for corner in bbox
+                # ]
+                # print(f"BBox: {bbox}")
+                # print(f"Transformed BBox: {transformed_bbox}\n\n")
 
                 # Turn 2D corners into 3D corners (with a buffer)
                 bbox_3d = self.transforms.create_3d_bounding_box(
-                    points, self.bbox_depth_buffer
+                    bbox, self.bbox_depth_buffer
                 )
                 bbox_lines = self.visualiser.overlay_3d_bbox(bbox_3d)
                 vis.add_geometry(bbox_lines)
@@ -179,8 +194,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--data", type=str, help="Data Folder Name.", default="gold_std"
     )
+    parser.add_argument(
+        "--model", type=str, help="The Type of 3D Model to Create [mesh or pc]", default="mesh"
+    )
     args = parser.parse_args()
     data_folder = args.data
+    model_type = args.model
 
     # Load the configuration
     os.chdir("../..")
@@ -190,12 +209,14 @@ if __name__ == "__main__":
     eps = 0.02
     min_points = 10
 
+    # Read the variables file
     with open(cfg.pickle_path, "rb") as file:
         variables = pickle.load(file)
 
     global_bboxes_data = variables["global_bboxes_data"]
     pose_df = variables["pose_df"]
 
+    # Create the map
     mapper = Mapping(
         global_bboxes_data=global_bboxes_data,
         pose=pose_df,
@@ -206,6 +227,11 @@ if __name__ == "__main__":
         overlay_pose=True,
     )
 
-    # Either make a point cloud or a mesh
-    # mapper.make_point_cloud()
-    mapper.make_mesh()
+    # Define the type of map to be made
+    make_map = {
+        "mesh": mapper.make_mesh,
+        "pc": mapper.make_point_cloud,
+    }
+
+    # Create the mesh/point cloud
+    make_map[model_type]()
