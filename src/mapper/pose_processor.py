@@ -1,6 +1,6 @@
 import sys
 
-sys.path.insert(0, r"../..")
+sys.path.insert(0, r"../..") # noqa: E402
 
 import argparse
 import os
