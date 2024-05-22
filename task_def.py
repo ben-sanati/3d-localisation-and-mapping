@@ -11,8 +11,8 @@ from src.detector.detector import ObjectDetector
 from src.mapper.database_query import PoseDataExtractor
 from src.mapper.mapping import Mapping
 from src.mapper.pose_processor import ProcessPose
-
 from src.utils.config import ConfigLoader
+from torch.utils.data import DataLoader
 
 
 sys.path.append(

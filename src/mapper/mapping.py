@@ -10,9 +10,8 @@ import pickle
 
 import numpy as np
 import open3d as o3d
-
-from src.utils.transformations import VisualisationTransforms
 from src.utils.config import ConfigLoader
+from src.utils.transformations import VisualisationTransforms
 from src.utils.visualisation import Visualiser
 
 
