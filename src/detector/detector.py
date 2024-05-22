@@ -1,5 +1,7 @@
-import os
 import sys
+sys.path.insert(0, r"src/detector/yolov7")
+
+import os
 
 import cv2
 import numpy as np
@@ -7,8 +9,6 @@ import torch
 import torch.nn as nn
 from numpy import random
 from tqdm import tqdm
-
-sys.path.insert(0, r"src/detector/yolov7")
 
 from models.experimental import attempt_load
 from utils.general import non_max_suppression

@@ -1,19 +1,16 @@
-import os
-import gc
-import sys
-import pickle
 import argparse
+import gc
+import os
+import pickle
+import sys
 
 import torch
-from torch.utils.data import DataLoader
-
 from src.detector.database_query import ImageExtractor
 from src.detector.dataset import ImageDataset
 from src.detector.detector import ObjectDetector
-
+from src.mapper.database_query import PoseDataExtractor
 from src.mapper.mapping import Mapping
 from src.mapper.pose_processor import ProcessPose
-from src.mapper.database_query import PoseDataExtractor
 
 from src.utils.config import ConfigLoader
 

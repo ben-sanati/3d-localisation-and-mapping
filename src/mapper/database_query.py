@@ -1,9 +1,9 @@
 import sys
+
 sys.path.insert(0, r"../..")
 
-import pandas as pd
 import open3d as o3d
-
+import pandas as pd
 from src.utils.transformations import VisualisationTransforms
 from src.utils.visualisation import Visualiser
 

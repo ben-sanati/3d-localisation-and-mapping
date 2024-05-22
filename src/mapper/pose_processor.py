@@ -1,4 +1,5 @@
 import sys
+
 sys.path.insert(0, r"../..")
 
 import argparse
@@ -8,7 +9,6 @@ import pickle
 import cv2
 import numpy as np
 import open3d as o3d
-
 from src.detector.dataset import ImageDataset
 from src.utils.config import ConfigLoader
 from src.utils.transformations import VisualisationTransforms
