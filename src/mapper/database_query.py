@@ -1,11 +1,11 @@
-import pandas as pd
-import open3d as o3d
 import sys
-
 sys.path.insert(0, r"../..")
 
-from src.utils.visualisation import Visualiser
+import pandas as pd
+import open3d as o3d
+
 from src.utils.transformations import VisualisationTransforms
+from src.utils.visualisation import Visualiser
 
 
 class PoseDataExtractor:

@@ -1,12 +1,13 @@
+
+import sys
+sys.path.insert(0, r"../..")
+sys.path.append("/home/phoenix/base/active/3D-Mapping-ATK")
+
 import argparse
 import numpy as np
 import open3d as o3d
 import os
 import pickle
-import sys
-
-sys.path.insert(0, r"../..")
-sys.path.append("/home/phoenix/base/active/3D-Mapping-ATK")
 
 from src.utils.transformations import VisualisationTransforms
 from src.utils.config import ConfigLoader
@@ -85,9 +86,7 @@ class Mapping:
 
     def _clustering(self):
         # Execute DBSCAN algorithm
-        with o3d.utility.VerbosityContextManager(
-            o3d.utility.VerbosityLevel.Debug
-        ):
+        with o3d.utility.VerbosityContextManager(o3d.utility.VerbosityLevel.Debug):
             labels = np.array(
                 self.pcd.cluster_dbscan(
                     eps=self.eps, min_points=self.min_points, print_progress=True

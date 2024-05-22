@@ -1,13 +1,13 @@
+import sys
+sys.path.insert(0, r"../..")
+
 import argparse
 import os
 import pickle
-import sys
 
 import cv2
 import numpy as np
 import open3d as o3d
-
-sys.path.insert(0, r"../..")
 
 from src.detector.dataset import ImageDataset
 from src.utils.config import ConfigLoader

@@ -204,7 +204,7 @@ if __name__ == "__main__":
         cfg.min_points,
         cfg.ply_path,
         cfg.preprocess_point_cloud,
-        cfg.overlay_pose
+        cfg.overlay_pose,
     )
 
     # Save as pickle file and load later to use in another script

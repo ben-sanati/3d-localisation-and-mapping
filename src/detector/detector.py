@@ -3,15 +3,15 @@ import sys
 
 import cv2
 import numpy as np
-from numpy import random
 import torch
 import torch.nn as nn
+from numpy import random
 from tqdm import tqdm
 
 sys.path.insert(0, r"src/detector/yolov7")
 
 from models.experimental import attempt_load
-from utils.general import non_max_suppression, scale_coords
+from utils.general import non_max_suppression
 
 
 class ObjectDetector(nn.Module):
@@ -38,14 +38,16 @@ class ObjectDetector(nn.Module):
         processing time compared to setting up on every inference call.
 
                 NMS breakdown:
-                    1) Discard all the boxes having probabilities less than or equal to a pre-defined threshold (say, 0.5)
+                    1) Discard all the boxes having probabilities less than or equal to a pre-defined threshold
+                        (say, 0.5)
                     2) For the remaining boxes:
                         a) Pick the box with the highest probability and take that as the output prediction
-                        b) Discard any other box which has IoU greater than the threshold with the output box from step 2
+                        b) Discard any other box which has IoU greater than the threshold with the output box from
+                            step 2
                     3) Repeat step 2 until all the boxes are either taken as the output prediction or discarded
         Args:
             image_size: size of input image (1280 for YOLOv7-e6 model)
-            conf_thresh: Minimum confidence requirement from YOLOv7 model output (~0.55 is seen to be the best from the 
+            conf_thresh: Minimum confidence requirement from YOLOv7 model output (~0.55 is seen to be the best from the
                         object detector training plots)
             iou_thresh: IoU threshold for NMS
             num_classes: Number of classes that can be defined (number of the types of signs)
