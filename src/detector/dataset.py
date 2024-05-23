@@ -81,14 +81,12 @@ class ImageDataset(Dataset):
                 )
                 return transform(img)
             else:
-                print("Buff")
                 transform = transforms.Compose(
                     [
                         transforms.Resize(depth_img.size()),
                         transforms.ToTensor(),
                     ]
                 )
-                print(transform(img).size(), depth_img.size())
                 return transform(img)
 
     def _load_calibration(self, calibration_path):
