@@ -1,7 +1,9 @@
 import os
 
+import cv2
 import yaml
 from natsort import natsorted
+import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision.transforms import transforms
@@ -55,8 +57,18 @@ class ImageDataset(Dataset):
         return image_tensor, depth_image_tensor, camera_intrinsics
 
     def _load_depth_image(self, path):
-        with Image.open(path) as img:
-            return self.depth_transform(img)[0, :, :]  # the depth channel is channel 0
+        # Load depth image
+        depth = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+
+        # Convert from CV_8UC4 to a CV_32FC1
+        depth = depth.reshape(depth.shape[0], depth.shape[1] * 4)
+        depth.dtype = np.float32
+
+        # Convert from metres to mm depth values
+        depth *= 1000
+
+        # Return as tensor (256, 192)
+        return self.depth_transform(depth).squeeze(0)
 
     def _load_image(self, path, depth_img):
         with Image.open(path) as img:
@@ -69,12 +81,14 @@ class ImageDataset(Dataset):
                 )
                 return transform(img)
             else:
+                print("Buff")
                 transform = transforms.Compose(
                     [
-                        transforms.Resize((depth_img.size()[0], depth_img.size()[1])),
+                        transforms.Resize(depth_img.size()),
                         transforms.ToTensor(),
                     ]
                 )
+                print(transform(img).size(), depth_img.size())
                 return transform(img)
 
     def _load_calibration(self, calibration_path):

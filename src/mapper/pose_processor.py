@@ -6,6 +6,7 @@ import sys
 import cv2
 import numpy as np
 import open3d as o3d
+import matplotlib.pyplot as plt
 
 sys.path.insert(0, r"../..")
 
@@ -26,7 +27,7 @@ class ProcessPose:
         depth_height,
         display_rgbd=False,
         display_3d=False,
-        scale_depth=100,
+        scale_depth=1000,
         bbox_depth_buffer=0.03,
         verbose=False,
     ):
@@ -68,13 +69,12 @@ class ProcessPose:
             (
                 rgb_image_cv,
                 depth_image_cv,
-                depth_image_norm_cv,
             ) = self.visualiser.parse_images(rgb_tensor, depth_tensor)
 
             # Display the RGB+D images
             if self.display_rgbd:
                 self.visualiser.display_imgs(
-                    cv2.cvtColor(rgb_image_cv, cv2.COLOR_RGB2BGR), depth_image_norm_cv
+                    cv2.cvtColor(rgb_image_cv, cv2.COLOR_RGB2BGR), depth_image_cv
                 )
 
             # Get pose information for the image
@@ -85,8 +85,6 @@ class ProcessPose:
                 pose_data, rgb_image_cv, depth_image_cv, bboxes, camera_intrinsics
             )
             global_bboxes[frame_index] = frame_global_bboxes
-            if frame_index == 10:
-                break
 
         return global_bboxes
 
@@ -128,9 +126,12 @@ class ProcessPose:
 
         # Configure the 3D visualizer
         if self.display_3d:
-            vis = o3d.visualization.Visualizer()
+            vis = o3d.visualization.VisualizerWithKeyCallback()
             vis.create_window()
             vis.add_geometry(point_cloud)
+
+            for key in range(256):
+                vis.register_key_callback(key, lambda vis: vis.close())  # Close on any key
 
         # Store global coordinates
         frame_global_bboxes = []
@@ -184,10 +185,7 @@ class ProcessPose:
                 vis.add_geometry(frustum)
 
         if self.display_3d:
-            vis.poll_events()
-            vis.update_renderer()
             vis.run()
-            vis.destroy_window()
 
         return frame_global_bboxes
 
