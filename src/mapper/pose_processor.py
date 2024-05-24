@@ -6,7 +6,7 @@ import sys
 import cv2
 import numpy as np
 import open3d as o3d
-from scipy.ndimage import generic_filter
+from scipy.interpolate import griddata
 
 sys.path.insert(0, r"../..")
 
@@ -139,10 +139,10 @@ class ProcessPose:
         # NEW CODE #
         # ######## #
 
-        def project_3d_to_2d(points, fx, fy, cx, cy, extrinsics):
+        def project_3d_to_2d(points, fx, fy, cx, cy, extrinsics, depth_image_shape):
             # Transform points from world coordinates to camera coordinates
-            points_camera = extrinsics @ np.hstack((points, np.ones((points.shape[0], 1)))).T
-            points_camera = points_camera[:3, :].T
+            points_homogeneous = np.hstack((points, np.ones((points.shape[0], 1))))
+            points_camera = (extrinsics @ points_homogeneous.T).T
 
             # Project points from 3D to 2D
             points_2d = np.zeros((points_camera.shape[0], 3))
@@ -150,25 +150,28 @@ class ProcessPose:
             points_2d[:, 1] = (points_camera[:, 1] * fy) / points_camera[:, 2] + cy
             points_2d[:, 2] = points_camera[:, 2]
 
+            # Clip points to be within image boundaries
+            points_2d[:, 0] = np.clip(points_2d[:, 0], 0, depth_image_shape[1] - 1)
+            points_2d[:, 1] = np.clip(points_2d[:, 1], 0, depth_image_shape[0] - 1)
+
             return points_2d
 
         def fill_depth_image(depth_image, projected_points):
-            filled_depth_image = depth_image.copy()
             h, w = depth_image.shape
+            x_coords = projected_points[:, 0].astype(int)
+            y_coords = projected_points[:, 1].astype(int)
+            z_values = projected_points[:, 2] * 1000
 
-            i, m = 0, 0
-            for point in projected_points:
-                x, y, z = int(round(point[0])), int(round(point[1])), point[2]
-                if 0 <= x < w and 0 <= y < h and filled_depth_image[y, x] == 0:
-                    filled_depth_image[y, x] = z * 1000
-                    i += 1
+            # Create a mask for valid points
+            valid_mask = (x_coords >= 0) & (x_coords < w) & (y_coords >= 0) & (y_coords < h)
 
-            for y in range(filled_depth_image.shape[0]):
-                for x in range(filled_depth_image.shape[1]):
-                    print(f"({y}, {x}): {filled_depth_image[y, x]}")
-                    if filled_depth_image[y, x] == 0:
-                        m += 1
-            print(f"Number of filled in points: {i}/{m}")
+            x_coords = x_coords[valid_mask]
+            y_coords = y_coords[valid_mask]
+            z_values = z_values[valid_mask]
+
+            # Use griddata for interpolation to fill remaining gaps
+            grid_x, grid_y = np.meshgrid(np.arange(w), np.arange(h))
+            filled_depth_image = griddata((x_coords, y_coords), z_values, (grid_x, grid_y), method='cubic', fill_value=0)
 
             return filled_depth_image
 
@@ -178,7 +181,7 @@ class ProcessPose:
         print(f"Vertices: {vertices.shape}")
 
         # Project 3D vertices to 2D image plane
-        projected_points = project_3d_to_2d(vertices, fx, fy, cx, cy, extrinsics)
+        projected_points = project_3d_to_2d(vertices, fx, fy, cx, cy, extrinsics, depth_image_cv.shape)
 
         # Debugging: Print some projected points
         for i in range(10):
@@ -188,16 +191,28 @@ class ProcessPose:
         depth_image_cv = fill_depth_image(depth_image_cv, projected_points)
         print(f"Depth image: {depth_image_cv.shape}")
 
-        # ######## #
-        # NEW CODE #
-        # ######## #
+        # Generate new RGBD image and point cloud
+        rgbd_image = self.visualiser.gen_rgbd(
+            rgb_image_cv,
+            depth_image_cv,
+            self.scale_depth,
+        )
+        point_cloud = self.visualiser.gen_point_cloud(
+            rgbd_image,
+            intrinsics,
+            extrinsics,
+        )
+
+        # ############## #
+        # ENDED NEW CODE #
+        # ############## #
 
         # Configure the 3D visualizer
         if self.display_3d:
             vis = o3d.visualization.VisualizerWithKeyCallback()
             vis.create_window()
             vis.add_geometry(point_cloud)
-            vis.add_geometry(mesh)
+            # vis.add_geometry(mesh)
 
             for key in range(64, 127):
                 vis.register_key_callback(key, lambda vis: vis.close())  # Close on any char key
