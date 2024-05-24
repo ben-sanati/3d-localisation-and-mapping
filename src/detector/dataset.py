@@ -11,7 +11,7 @@ from torchvision.transforms import transforms
 
 class ImageDataset(Dataset):
     def __init__(
-        self, image_dir, depth_image_dir, calibration_dir, img_size, processing=True
+        self, image_dir, depth_image_dir, calibration_dir, img_size, depth_width=192, depth_height=256, processing=True
     ):
         self.image_dir, self.depth_image_dir, self.calibration_dir = (
             image_dir,
@@ -20,6 +20,8 @@ class ImageDataset(Dataset):
         )
         self.img_size = img_size
         self.processing = processing
+        self.depth_width = depth_width
+        self.depth_height = depth_height
 
         self.image_filenames = natsorted(os.listdir(image_dir))
         self.depth_image_filenames = natsorted(os.listdir(depth_image_dir))
@@ -68,7 +70,8 @@ class ImageDataset(Dataset):
         depth *= 1000
 
         # Return as tensor (256, 192)
-        return self.depth_transform(depth).squeeze(0)
+        depth_tensor = self.depth_transform(depth).squeeze(0)
+        return depth_tensor.reshape(self.depth_height, self.depth_width)
 
     def _load_image(self, path, depth_img):
         with Image.open(path) as img:
