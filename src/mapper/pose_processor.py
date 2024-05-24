@@ -80,7 +80,6 @@ class ProcessPose:
                 )
 
             # Get pose information for the image
-            print(f"Frame {frame_index}:")
             pose_data = self.pose.iloc[frame_index][1:].to_numpy()
 
             # Get global coordinate of bounding boxes
@@ -116,24 +115,15 @@ class ProcessPose:
         )
 
         # Generate RGBD image and point cloud
-        rgbd_image = self.visualiser.gen_rgbd(
+        rgbd_image, point_cloud = self._generate_rgbd_and_point_cloud(
             rgb_image_cv,
             depth_image_cv,
-            self.scale_depth,
-        )
-        point_cloud = self.visualiser.gen_point_cloud(
-            rgbd_image,
             intrinsics,
-            extrinsics,
+            extrinsics
         )
 
         # Estimate normals and generate mesh
-        point_cloud.estimate_normals(
-            search_param=o3d.geometry.KDTreeSearchParamHybrid(
-                radius=0.1, max_nn=30,
-            )
-        )
-        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(point_cloud, depth=5)
+        mesh = self._generate_mesh(point_cloud)
 
         # Extract vertices from the mesh
         np.set_printoptions(threshold=np.inf)
@@ -146,15 +136,11 @@ class ProcessPose:
         depth_image_cv = self.transforms.fill_depth_image(depth_image_cv, projected_points)
 
         # Generate new RGBD image and point cloud
-        rgbd_image = self.visualiser.gen_rgbd(
+        rgbd_image, point_cloud = self._generate_rgbd_and_point_cloud(
             rgb_image_cv,
             depth_image_cv,
-            self.scale_depth,
-        )
-        point_cloud = self.visualiser.gen_point_cloud(
-            rgbd_image,
             intrinsics,
-            extrinsics,
+            extrinsics
         )
 
         # Configure the 3D visualizer
@@ -162,7 +148,6 @@ class ProcessPose:
             vis = o3d.visualization.VisualizerWithKeyCallback()
             vis.create_window()
             vis.add_geometry(point_cloud)
-            # vis.add_geometry(mesh)
 
             for key in range(64, 127):
                 vis.register_key_callback(key, lambda vis: vis.close())  # Close on any char key
@@ -276,6 +261,21 @@ class ProcessPose:
         line_points = camera_position + np.outer(t_values, direction)
 
         return line_points
+
+    def _generate_rgbd_and_point_cloud(self, rgb_image_cv, depth_image_cv, intrinsics, extrinsics):
+        rgbd_image = self.visualiser.gen_rgbd(rgb_image_cv, depth_image_cv, self.scale_depth)
+        point_cloud = self.visualiser.gen_point_cloud(rgbd_image, intrinsics, extrinsics)
+        return rgbd_image, point_cloud
+
+    @staticmethod
+    def _generate_mesh(point_cloud):
+        point_cloud.estimate_normals(
+            search_param=o3d.geometry.KDTreeSearchParamHybrid(
+                radius=0.1, max_nn=30,
+            )
+        )
+        mesh, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(point_cloud, depth=5)
+        return mesh
 
 
 if __name__ == "__main__":

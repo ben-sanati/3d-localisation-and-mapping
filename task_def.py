@@ -191,6 +191,17 @@ if __name__ == "__main__":
         cfg.display_3d,
     )
 
+    # Save as pickle file and load later to use in another script
+    data_to_save["global_bboxes_data"] = global_bboxes_data
+    data_to_save["pose_df"] = pose_df
+
+    try:
+        with open(cfg.pickle_path, "wb") as file:
+            pickle.dump(data_to_save, file)
+            print("Variables stored to pickle file.\n", flush=True)
+    except Exception as e:
+        print(f"Failed to write to file: {e}\n")
+
     # Plot 3D Global Map
     plot_map(
         global_bboxes_data,
@@ -201,14 +212,3 @@ if __name__ == "__main__":
         cfg.preprocess_point_cloud,
         cfg.overlay_pose,
     )
-
-    # Save as pickle file and load later to use in another script
-    data_to_save["global_bboxes_data"] = global_bboxes_data
-    data_to_save["pose_df"] = pose_df
-
-    try:
-        with open(cfg.pickle_path, "wb") as file:
-            pickle.dump(data_to_save, file)
-            print("Variables stored to pickle file.", flush=True)
-    except Exception as e:
-        print(f"Failed to write to file: {e}")
