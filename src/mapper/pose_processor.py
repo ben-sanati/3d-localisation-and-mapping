@@ -6,7 +6,7 @@ import sys
 import cv2
 import numpy as np
 import open3d as o3d
-import matplotlib.pyplot as plt
+from scipy.ndimage import generic_filter
 
 sys.path.insert(0, r"../..")
 
@@ -74,10 +74,13 @@ class ProcessPose:
             # Display the RGB+D images
             if self.display_rgbd:
                 self.visualiser.display_imgs(
-                    cv2.cvtColor(rgb_image_cv, cv2.COLOR_RGB2BGR), depth_image_cv
+                    cv2.cvtColor(rgb_image_cv, cv2.COLOR_RGB2BGR),
+                    depth_image_cv,
+                    frame_index=frame_index,
                 )
 
             # Get pose information for the image
+            print(f"Frame {frame_index}:")
             pose_data = self.pose.iloc[frame_index][1:].to_numpy()
 
             # Get global coordinate of bounding boxes
@@ -124,14 +127,61 @@ class ProcessPose:
             extrinsics,
         )
 
+        # Estimate normals and generate mesh
+        normals = point_cloud.estimate_normals(
+            search_param=o3d.geometry.KDTreeSearchParamHybrid(
+                radius=0.1, max_nn=30,
+            )
+        )
+        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(point_cloud, depth=5)
+
+        # ######## #
+        # NEW CODE #
+        # ######## #
+
+        # Sample points from the mesh
+        pcd = mesh.sample_points_uniformly(number_of_points=10000)
+        points = np.asarray(pcd.points)
+
+        # Create a function to project 3D points to 2D image plane
+        def project_to_image(points, fx, fy, cx, cy):
+            image_points = np.zeros((points.shape[0], 2))
+            image_points[:, 0] = fx * points[:, 0] / points[:, 2] + cx
+            image_points[:, 1] = fy * points[:, 1] / points[:, 2] + cy
+            return image_points
+
+        # Project the 3D points to 2D image coordinates
+        image_points = project_to_image(points, fx, fy, cx, cy).astype(np.int32)
+
+        # Initialize the depth map from the mesh
+        depth_from_mesh = np.zeros((camera_intrinsics["image_width"], camera_intrinsics["image_height"]))
+
+        # Fill the depth map with the z values of the projected points
+        for i, point in enumerate(points):
+            x, y = image_points[i]
+            if 0 <= x < camera_intrinsics["image_width"] and 0 <= y < camera_intrinsics["image_height"]:
+                depth_from_mesh[y, x] = point[2]
+
+        # Handle the 0 values in the depth map
+        def nearest_nonzero(a):
+            non_zero = a[a != 0]
+            return non_zero[0] if len(non_zero) > 0 else 0
+
+        depth_from_mesh = generic_filter(depth_from_mesh, nearest_nonzero, size=3)
+
+        # ######## #
+        # NEW CODE #
+        # ######## #
+
         # Configure the 3D visualizer
         if self.display_3d:
             vis = o3d.visualization.VisualizerWithKeyCallback()
             vis.create_window()
             vis.add_geometry(point_cloud)
+            vis.add_geometry(mesh)
 
-            for key in range(256):
-                vis.register_key_callback(key, lambda vis: vis.close())  # Close on any key
+            for key in range(64, 127):
+                vis.register_key_callback(key, lambda vis: vis.close())  # Close on any char key
 
         # Store global coordinates
         frame_global_bboxes = []
@@ -157,10 +207,33 @@ class ProcessPose:
             global_corners = [
                 self._transform_to_global(corner, pose_data) for corner in corners_3d
             ]
-            visualise_corners_3d = self.transforms.create_3d_bounding_box(
-                global_corners, self.bbox_depth_buffer
-            )
+            # visualise_corners_3d = self.transforms.create_3d_bounding_box(
+            #     global_corners, self.bbox_depth_buffer
+            # )
+            visualise_corners_3d = global_corners
             frame_global_bboxes.append(global_corners)
+
+            # ######## #
+            # NEW CODE #
+            # ######## #
+
+            camera_position = pose_data[:3]
+            threshold_distance = 0.05
+            depth_threshold = 1.0  # You can adjust this threshold value as needed
+            for idx, (corner) in enumerate(global_corners):
+                distance = np.linalg.norm(np.array(corner) - camera_position)
+                print(f"\t\tDistance = {distance} = {corner} - {camera_position}", flush=True)
+                if distance <= threshold_distance:
+                    x, y = int(corner[0]), int(corner[1])
+                    if 0 <= x < depth_from_mesh.shape[1] and 0 <= y < depth_from_mesh.shape[0]:
+                        depth_value = depth_from_mesh[y, x]
+                        if depth_value < depth_threshold:
+                            corners_3d[idx][2] = depth_value
+                            print(f"Depth value at {corner[:2]}: {depth_value}", flush=True)
+
+            # ######## #
+            # NEW CODE #
+            # ######## #
 
             if self.verbose:
                 print(f"\tOriginal 2D Corners: {corners}")
@@ -229,6 +302,19 @@ class ProcessPose:
         # Apply rotation and translation to obtain the global coordinates
         global_point = (transformation @ local_point.T)[:3, 0]
         return global_point
+
+    def get_depth_from_mesh(self, mesh, bbox_corner, camera_position):
+        # Calculate the direction vector
+        direction = bbox_corner - camera_position
+        direction /= np.linalg.norm(direction)
+
+        # Generate t values
+        t_values = np.linspace(0, 5, num=500)
+
+        # Project points onto the line (use parametric equation)
+        line_points = camera_position + np.outer(t_values, direction)
+
+        return line_points
 
 
 if __name__ == "__main__":

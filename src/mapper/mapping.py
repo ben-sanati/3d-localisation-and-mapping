@@ -157,7 +157,6 @@ class Mapping:
             camera_position = np.array(pose_data[:3])
             for bbox in bbox_list:
                 # bbox_area = self.transforms.calculate_bbox_area(bbox)
-
                 # if (
                 #     self._is_within_threshold(bbox, camera_position, self.cam_to_bbox_min_th) or  # noqa
                 #     bbox_area < self.area_bbox_min_th
@@ -170,14 +169,6 @@ class Mapping:
                 #     elif bbox_area < self.area_bbox_min_th:
                 #         print("\t\tBBox removed. BBox area too small.")
                 #     continue
-
-                # # Map corner to point cloud from camera pose
-                # transformed_bbox = [
-                #     self.transforms.closest_point_to_corner(
-                #         camera_position, corner, kd_tree, point_cloud_points
-                #     )
-                #     for corner in bbox
-                # ]
 
                 # Turn 2D corners into 3D corners (with a buffer)
                 bbox_3d = self.transforms.create_3d_bounding_box(
