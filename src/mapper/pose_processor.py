@@ -135,61 +135,15 @@ class ProcessPose:
         )
         mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(point_cloud, depth=5)
 
-        # ######## #
-        # NEW CODE #
-        # ######## #
-
-        def project_3d_to_2d(points, fx, fy, cx, cy, extrinsics, depth_image_shape):
-            # Transform points from world coordinates to camera coordinates
-            points_homogeneous = np.hstack((points, np.ones((points.shape[0], 1))))
-            points_camera = (extrinsics @ points_homogeneous.T).T
-
-            # Project points from 3D to 2D
-            points_2d = np.zeros((points_camera.shape[0], 3))
-            points_2d[:, 0] = (points_camera[:, 0] * fx) / points_camera[:, 2] + cx
-            points_2d[:, 1] = (points_camera[:, 1] * fy) / points_camera[:, 2] + cy
-            points_2d[:, 2] = points_camera[:, 2]
-
-            # Clip points to be within image boundaries
-            points_2d[:, 0] = np.clip(points_2d[:, 0], 0, depth_image_shape[1] - 1)
-            points_2d[:, 1] = np.clip(points_2d[:, 1], 0, depth_image_shape[0] - 1)
-
-            return points_2d
-
-        def fill_depth_image(depth_image, projected_points):
-            h, w = depth_image.shape
-            x_coords = projected_points[:, 0].astype(int)
-            y_coords = projected_points[:, 1].astype(int)
-            z_values = projected_points[:, 2] * 1000
-
-            # Create a mask for valid points
-            valid_mask = (x_coords >= 0) & (x_coords < w) & (y_coords >= 0) & (y_coords < h)
-
-            x_coords = x_coords[valid_mask]
-            y_coords = y_coords[valid_mask]
-            z_values = z_values[valid_mask]
-
-            # Use griddata for interpolation to fill remaining gaps
-            grid_x, grid_y = np.meshgrid(np.arange(w), np.arange(h))
-            filled_depth_image = griddata((x_coords, y_coords), z_values, (grid_x, grid_y), method='cubic', fill_value=0)
-
-            return filled_depth_image
-
         # Extract vertices from the mesh
         np.set_printoptions(threshold=np.inf)
         vertices = np.asarray(mesh.vertices)
-        print(f"Vertices: {vertices.shape}")
 
         # Project 3D vertices to 2D image plane
-        projected_points = project_3d_to_2d(vertices, fx, fy, cx, cy, extrinsics, depth_image_cv.shape)
-
-        # Debugging: Print some projected points
-        for i in range(10):
-            print(f"3D Point: {vertices[i]}, Projected 2D Point: {projected_points[i]}")
+        projected_points = self.transforms.project_3d_to_2d(vertices, fx, fy, cx, cy, extrinsics, depth_image_cv.shape)
 
         # Fill the depth image with the depth values from the mesh
-        depth_image_cv = fill_depth_image(depth_image_cv, projected_points)
-        print(f"Depth image: {depth_image_cv.shape}")
+        depth_image_cv = self.transforms.fill_depth_image(depth_image_cv, projected_points)
 
         # Generate new RGBD image and point cloud
         rgbd_image = self.visualiser.gen_rgbd(
@@ -202,10 +156,6 @@ class ProcessPose:
             intrinsics,
             extrinsics,
         )
-
-        # ############## #
-        # ENDED NEW CODE #
-        # ############## #
 
         # Configure the 3D visualizer
         if self.display_3d:
@@ -241,20 +191,10 @@ class ProcessPose:
             global_corners = [
                 self._transform_to_global(corner, pose_data) for corner in corners_3d
             ]
-            # visualise_corners_3d = self.transforms.create_3d_bounding_box(
-            #     global_corners, self.bbox_depth_buffer
-            # )
-            print(global_corners, flush=True)
-            visualise_corners_3d = global_corners
+            visualise_corners_3d = self.transforms.create_3d_bounding_box(
+                global_corners, self.bbox_depth_buffer
+            )
             frame_global_bboxes.append(global_corners)
-
-            # ######## #
-            # NEW CODE #
-            # ######## #
-
-            # ######## #
-            # NEW CODE #
-            # ######## #
 
             if self.verbose:
                 print(f"\tOriginal 2D Corners: {corners}")
