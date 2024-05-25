@@ -5,7 +5,6 @@ import sys
 
 import numpy as np
 import open3d as o3d
-from scipy.spatial import KDTree
 
 sys.path.insert(0, r"../..")
 sys.path.append("/home/phoenix/base/active/3D-Mapping-ATK")
@@ -151,7 +150,6 @@ class Mapping:
 
         # Overlay 3D bboxes onto point cloud
         point_cloud_points = np.asarray(self.pcd.points)
-        kd_tree = KDTree(point_cloud_points)
         for frame_index, bbox_list in self.global_bboxes_data.items():
             pose_data = self.pose.iloc[frame_index]
             camera_position = np.array(pose_data[:3])

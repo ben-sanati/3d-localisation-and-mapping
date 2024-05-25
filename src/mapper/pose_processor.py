@@ -2,6 +2,7 @@ import argparse
 import os
 import pickle
 import sys
+from tqdm import tqdm
 
 import cv2
 import numpy as np
@@ -61,8 +62,9 @@ class ProcessPose:
         self.transforms = VisualisationTransforms()
 
     def get_global_coordinates(self):
+        loop = tqdm(self.bbox_coordinates.items(), total=len(self.bbox_coordinates))
         global_bboxes = {}
-        for frame_index, bboxes in self.bbox_coordinates.items():
+        for frame_index, bboxes in loop:
             # Acquire images
             rgb_tensor, depth_tensor, camera_intrinsics = self.dataset[frame_index]
             (
@@ -86,6 +88,9 @@ class ProcessPose:
                 pose_data, rgb_image_cv, depth_image_cv, bboxes, camera_intrinsics
             )
             global_bboxes[frame_index] = frame_global_bboxes
+
+            # Update progress bar
+            loop.set_description(f"Frame [{frame_index}/{len(self.bbox_coordinates)}]")
 
         return global_bboxes
 
@@ -145,6 +150,7 @@ class ProcessPose:
             vis = o3d.visualization.VisualizerWithKeyCallback()
             vis.create_window()
             vis.add_geometry(point_cloud)
+            # vis.add_geometry(mesh)
 
             for key in range(64, 127):
                 vis.register_key_callback(
@@ -274,6 +280,9 @@ class ProcessPose:
 
     @staticmethod
     def _generate_mesh(point_cloud):
+        # Downsample the point cloud to reduce the number of points
+        point_cloud = point_cloud.voxel_down_sample(voxel_size=0.05)
+
         point_cloud.estimate_normals(
             search_param=o3d.geometry.KDTreeSearchParamHybrid(
                 radius=0.1,
