@@ -3,6 +3,7 @@ import os
 import pickle
 import sys
 from tqdm import tqdm
+from contextlib import contextmanager
 
 import cv2
 import numpy as np
@@ -14,6 +15,23 @@ from src.detector.dataset import ImageDataset  # noqa
 from src.utils.config import ConfigLoader  # noqa
 from src.utils.transformations import VisualisationTransforms  # noqa
 from src.utils.visualisation import Visualiser  # noqa
+
+
+@contextmanager
+def suppress_stdout_stderr():
+    """
+    A context manager that redirects stdout and stderr to devnull (i.e., suppresses output).
+    """
+    with open(os.devnull, 'w') as devnull:
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+        sys.stdout = devnull
+        sys.stderr = devnull
+        try:
+            yield
+        finally:
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
 
 
 class ProcessPose:
@@ -280,18 +298,17 @@ class ProcessPose:
 
     @staticmethod
     def _generate_mesh(point_cloud):
-        # Downsample the point cloud to reduce the number of points
-        point_cloud = point_cloud.voxel_down_sample(voxel_size=0.05)
-
-        point_cloud.estimate_normals(
-            search_param=o3d.geometry.KDTreeSearchParamHybrid(
-                radius=0.1,
-                max_nn=30,
+        with suppress_stdout_stderr():
+            point_cloud.estimate_normals(
+                search_param=o3d.geometry.KDTreeSearchParamHybrid(
+                    radius=0.1,
+                    max_nn=30,
+                )
             )
-        )
-        mesh, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
-            point_cloud, depth=5
-        )
+            mesh, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+                point_cloud, depth=5
+            )
+
         return mesh
 
 
@@ -322,7 +339,6 @@ if __name__ == "__main__":
         img_size=cfg.img_size,
         processing=False,
     )
-    print(f"Pose: {pose_df}\n\nDepth Images: {len(dataset)}")
 
     pose_processing = ProcessPose(
         pose=pose_df,
