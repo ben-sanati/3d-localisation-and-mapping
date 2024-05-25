@@ -149,7 +149,6 @@ class Mapping:
         vis.add_geometry(data)
 
         # Overlay 3D bboxes onto point cloud
-        point_cloud_points = np.asarray(self.pcd.points)
         for frame_index, bbox_list in self.global_bboxes_data.items():
             pose_data = self.pose.iloc[frame_index]
             camera_position = np.array(pose_data[:3])
@@ -157,7 +156,7 @@ class Mapping:
                 bbox_area = self.transforms.calculate_bbox_area(bbox)
                 if (
                     self._is_within_threshold(bbox, camera_position, self.cam_to_bbox_min_th) or  # noqa
-                    bbox_area < self.area_bbox_min_th
+                    bbox_area < self.area_bbox_min_th  # noqa
                 ):
                     # Reason for removal
                     if self._is_within_threshold(bbox, camera_position, self.cam_to_bbox_min_th):  # noqa

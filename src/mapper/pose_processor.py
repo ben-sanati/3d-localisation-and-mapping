@@ -2,12 +2,12 @@ import argparse
 import os
 import pickle
 import sys
-from tqdm import tqdm
 from contextlib import contextmanager
 
 import cv2
 import numpy as np
 import open3d as o3d
+from tqdm import tqdm
 
 sys.path.insert(0, r"../..")
 
@@ -22,7 +22,7 @@ def suppress_stdout_stderr():
     """
     A context manager that redirects stdout and stderr to devnull (i.e., suppresses output).
     """
-    with open(os.devnull, 'w') as devnull:
+    with open(os.devnull, "w") as devnull:
         old_stdout = sys.stdout
         old_stderr = sys.stderr
         sys.stdout = devnull
