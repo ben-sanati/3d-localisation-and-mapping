@@ -1,9 +1,9 @@
 import os
 
 import cv2
+import numpy as np
 import yaml
 from natsort import natsorted
-import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision.transforms import transforms
@@ -11,7 +11,14 @@ from torchvision.transforms import transforms
 
 class ImageDataset(Dataset):
     def __init__(
-        self, image_dir, depth_image_dir, calibration_dir, img_size, depth_width=192, depth_height=256, processing=True
+        self,
+        image_dir,
+        depth_image_dir,
+        calibration_dir,
+        img_size,
+        depth_width=192,
+        depth_height=256,
+        processing=True,
     ):
         self.image_dir, self.depth_image_dir, self.calibration_dir = (
             image_dir,

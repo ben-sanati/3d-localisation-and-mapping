@@ -6,7 +6,6 @@ import sys
 import cv2
 import numpy as np
 import open3d as o3d
-from scipy.interpolate import griddata
 
 sys.path.insert(0, r"../..")
 
@@ -116,32 +115,30 @@ class ProcessPose:
 
         # Generate RGBD image and point cloud
         rgbd_image, point_cloud = self._generate_rgbd_and_point_cloud(
-            rgb_image_cv,
-            depth_image_cv,
-            intrinsics,
-            extrinsics
+            rgb_image_cv, depth_image_cv, intrinsics, extrinsics
         )
 
-        # Estimate normals and generate mesh
-        mesh = self._generate_mesh(point_cloud)
+        # # Estimate normals and generate mesh
+        # mesh = self._generate_mesh(point_cloud)
 
-        # Extract vertices from the mesh
-        np.set_printoptions(threshold=np.inf)
-        vertices = np.asarray(mesh.vertices)
+        # # Extract vertices from the mesh
+        # np.set_printoptions(threshold=np.inf)
+        # vertices = np.asarray(mesh.vertices)
 
-        # Project 3D vertices to 2D image plane
-        projected_points = self.transforms.project_3d_to_2d(vertices, fx, fy, cx, cy, extrinsics, depth_image_cv.shape)
+        # # Project 3D vertices to 2D image plane
+        # projected_points = self.transforms.project_3d_to_2d(
+        #     vertices, fx, fy, cx, cy, extrinsics, depth_image_cv.shape
+        # )
 
-        # Fill the depth image with the depth values from the mesh
-        depth_image_cv = self.transforms.fill_depth_image(depth_image_cv, projected_points)
+        # # Fill the depth image with the depth values from the mesh
+        # depth_image_cv = self.transforms.fill_depth_image(
+        #     depth_image_cv, projected_points
+        # )
 
-        # Generate new RGBD image and point cloud
-        rgbd_image, point_cloud = self._generate_rgbd_and_point_cloud(
-            rgb_image_cv,
-            depth_image_cv,
-            intrinsics,
-            extrinsics
-        )
+        # # Generate new RGBD image and point cloud
+        # rgbd_image, point_cloud = self._generate_rgbd_and_point_cloud(
+        #     rgb_image_cv, depth_image_cv, intrinsics, extrinsics
+        # )
 
         # Configure the 3D visualizer
         if self.display_3d:
@@ -150,7 +147,9 @@ class ProcessPose:
             vis.add_geometry(point_cloud)
 
             for key in range(64, 127):
-                vis.register_key_callback(key, lambda vis: vis.close())  # Close on any char key
+                vis.register_key_callback(
+                    key, lambda vis: vis.close()
+                )  # Close on any char key
 
         # Store global coordinates
         frame_global_bboxes = []
@@ -262,19 +261,28 @@ class ProcessPose:
 
         return line_points
 
-    def _generate_rgbd_and_point_cloud(self, rgb_image_cv, depth_image_cv, intrinsics, extrinsics):
-        rgbd_image = self.visualiser.gen_rgbd(rgb_image_cv, depth_image_cv, self.scale_depth)
-        point_cloud = self.visualiser.gen_point_cloud(rgbd_image, intrinsics, extrinsics)
+    def _generate_rgbd_and_point_cloud(
+        self, rgb_image_cv, depth_image_cv, intrinsics, extrinsics
+    ):
+        rgbd_image = self.visualiser.gen_rgbd(
+            rgb_image_cv, depth_image_cv, self.scale_depth
+        )
+        point_cloud = self.visualiser.gen_point_cloud(
+            rgbd_image, intrinsics, extrinsics
+        )
         return rgbd_image, point_cloud
 
     @staticmethod
     def _generate_mesh(point_cloud):
         point_cloud.estimate_normals(
             search_param=o3d.geometry.KDTreeSearchParamHybrid(
-                radius=0.1, max_nn=30,
+                radius=0.1,
+                max_nn=30,
             )
         )
-        mesh, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(point_cloud, depth=5)
+        mesh, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+            point_cloud, depth=5
+        )
         return mesh
 
 
