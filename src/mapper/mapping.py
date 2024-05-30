@@ -77,9 +77,9 @@ class Mapping:
         self._visualiser(self.pcd)
 
     def make_mesh(self):
-        # if self.preprocess_point_cloud:
-        #     # DBSCAN clustering
-        #     self._clustering()
+        if self.preprocess_point_cloud:
+            # DBSCAN clustering
+            self._clustering()
 
         # Create mesh
         print("\tMaking mesh...")
@@ -174,22 +174,6 @@ class Mapping:
                         print("\t\tBBox removed. BBox area too small.")
                     continue
 
-                bbox_centroid = np.mean(bbox, axis=0)
-
-                # Map centroid to point cloud from camera pose
-                closest_point = self.transforms.closest_point_to_centroid(
-                    camera_position, bbox_centroid, data,
-                )
-                sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.03)
-                sphere.translate(closest_point)
-                sphere.paint_uniform_color([1, 0, 0])
-                print(f"Transformed centroid: {closest_point}")
-
-                # Translate the bbox to the position of the closest point
-                translation_vector = closest_point - bbox_centroid
-                transformed_bbox = [corner + translation_vector for corner in bbox]
-                print(f"Translated bbox: {transformed_bbox}")
-
                 # Turn 2D corners into 3D corners (with a buffer)
                 bbox_3d = self.transforms.create_3d_bounding_box(
                     bbox, self.bbox_depth_buffer
@@ -264,8 +248,8 @@ if __name__ == "__main__":
         eps=eps,
         min_points=min_points,
         ply_filepath=cfg.ply_path,
-        preprocess_point_cloud=True,
-        overlay_pose=True,
+        preprocess_point_cloud=False,
+        overlay_pose=False,
     )
 
     # Define the type of map to be made
