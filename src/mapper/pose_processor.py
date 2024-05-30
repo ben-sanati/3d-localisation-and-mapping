@@ -108,7 +108,7 @@ class ProcessPose:
             global_bboxes[frame_index] = frame_global_bboxes
 
             # Update progress bar
-            loop.set_description(f"Frame [{frame_index}/{len(self.bbox_coordinates)}]")
+            loop.set_description(f"Frame [{frame_index + 1}/{len(self.bbox_coordinates)}]")
 
         return global_bboxes
 
@@ -168,7 +168,6 @@ class ProcessPose:
             vis = o3d.visualization.VisualizerWithKeyCallback()
             vis.create_window()
             vis.add_geometry(point_cloud)
-            # vis.add_geometry(mesh)
 
             for key in range(64, 127):
                 vis.register_key_callback(
@@ -347,7 +346,7 @@ if __name__ == "__main__":
         img_size=cfg.img_size,
         depth_width=cfg.depth_width,
         depth_height=cfg.depth_height,
-        display_rgbd=False,
+        display_rgbd=True,
         display_3d=True,
     )
     global_bboxes_data = pose_processing.get_global_coordinates()

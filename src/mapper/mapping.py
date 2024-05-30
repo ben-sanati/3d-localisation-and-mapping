@@ -3,8 +3,10 @@ import os
 import pickle
 import sys
 
+import pymesh
 import numpy as np
 import open3d as o3d
+from scipy.spatial import KDTree
 
 sys.path.insert(0, r"../..")
 sys.path.append("/home/phoenix/base/active/3D-Mapping-ATK")
@@ -20,15 +22,16 @@ class Mapping:
         global_bboxes_data,
         pose,
         eps=0.04,
-        min_points=10,
+        min_points=1000,
         ply_filepath=r"../common/data/gold_std/cloud.ply",
         preprocess_point_cloud=True,
         overlay_pose=False,
         radius=0.1,
         max_nn=30,
-        depth=8,
+        depth=10,  # Increase this for higher resolution meshes
         scale_factor=1.0,
-        bbox_depth_buffer=0.02,  # 3cm
+        # In cm:
+        bbox_depth_buffer=0.02,
         area_bbox_min_th=0.001,
         cam_to_bbox_min_th=0.01,
     ):
@@ -74,17 +77,17 @@ class Mapping:
         self._visualiser(self.pcd)
 
     def make_mesh(self):
-        if self.preprocess_point_cloud:
-            # DBSCAN clustering
-            self._clustering()
+        # if self.preprocess_point_cloud:
+        #     # DBSCAN clustering
+        #     self._clustering()
 
         # Create mesh
         print("\tMaking mesh...")
         mesh = self._poisson_surface_recon()
 
-        # Optimise mesh
-        print("\tOptimising mesh...")
-        mesh = self._optimise_mesh(mesh)
+        # # Optimise mesh
+        # print("\tOptimising mesh...")
+        # mesh = self._optimise_mesh(mesh)
 
         # Visualise mesh
         print("\tVisualising mesh...")
@@ -95,7 +98,7 @@ class Mapping:
         with o3d.utility.VerbosityContextManager(o3d.utility.VerbosityLevel.Debug):
             labels = np.array(
                 self.pcd.cluster_dbscan(
-                    eps=self.eps, min_points=self.min_points, print_progress=True
+                    eps=self.eps, min_points=self.min_points, print_progress=True,
                 )
             )
 
@@ -114,13 +117,13 @@ class Mapping:
         # Estimate normals
         self.pcd.estimate_normals(
             search_param=o3d.geometry.KDTreeSearchParamHybrid(
-                radius=self.radius, max_nn=self.max_nn
+                radius=self.radius, max_nn=self.max_nn,
             )
         )
 
         # Apply Poisson surface reconstruction
         mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
-            self.pcd, depth=self.depth, scale=self.scale_factor
+            self.pcd, depth=self.depth, scale=self.scale_factor,
         )
 
         return mesh
@@ -171,11 +174,28 @@ class Mapping:
                         print("\t\tBBox removed. BBox area too small.")
                     continue
 
+                bbox_centroid = np.mean(bbox, axis=0)
+
+                # Map centroid to point cloud from camera pose
+                closest_point = self.transforms.closest_point_to_centroid(
+                    camera_position, bbox_centroid, data,
+                )
+                sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.03)
+                sphere.translate(closest_point)
+                sphere.paint_uniform_color([1, 0, 0])
+                print(f"Transformed centroid: {closest_point}")
+
+                # Translate the bbox to the position of the closest point
+                translation_vector = closest_point - bbox_centroid
+                transformed_bbox = [corner + translation_vector for corner in bbox]
+                print(f"Translated bbox: {transformed_bbox}")
+
                 # Turn 2D corners into 3D corners (with a buffer)
                 bbox_3d = self.transforms.create_3d_bounding_box(
                     bbox, self.bbox_depth_buffer
                 )
                 bbox_lines = self.visualiser.overlay_3d_bbox(bbox_3d)
+                # vis.add_geometry(sphere)
                 vis.add_geometry(bbox_lines)
 
         if self.overlay_pose:
@@ -245,7 +265,7 @@ if __name__ == "__main__":
         min_points=min_points,
         ply_filepath=cfg.ply_path,
         preprocess_point_cloud=True,
-        overlay_pose=False,
+        overlay_pose=True,
     )
 
     # Define the type of map to be made

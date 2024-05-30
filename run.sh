@@ -11,4 +11,4 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-python3 "task_def.py" --data "$DATA" > "$LOGS/debug.out"
+python3 "task_def.py" --data "$DATA" > "$LOGS/${DATA}_debug.out"
