@@ -16,23 +16,6 @@
   </tr>
 </table>
 
-<!-- <script>
-  window.onload = function() {
-    var firstImage = document.getElementById("firstImage");
-    var secondImage = document.getElementById("secondImage");
-
-    var firstImageWidth = firstImage.clientWidth;
-    var firstImageHeight = firstImageWidth * 0.6;
-
-    firstImage.style.height = firstImageHeight + "px";
-    firstImage.style.width = "100%";
-
-    secondImage.style.height = firstImageHeight + "px";
-    secondImage.style.width = "auto";
-  };
-</script> -->
-
-
 ## Usage
 
 ### Data Folder Setup
