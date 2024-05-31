@@ -2,10 +2,10 @@
 
 <div style="display: flex; justify-content: center;">
   <div style="text-align: center; margin: 10px;">
-    <img src="readme_img/gold_std_map.png" width="450" height="220"/>
+    <img src="readme_img/gold_std_map.png" width="400" height="220"/>
   </div>
   <div style="text-align: center; margin: 10px;">
-    <img src="readme_img/seating_map.png" width="450" height="220"/>
+    <img src="readme_img/seating_map.png" width="400" height="220"/>
   </div>
 </div>
 <p align="center">
