@@ -1,7 +1,7 @@
 # Data
 *.db
 *.ply
-*.png
+src/*.png
 *.jpg
 *.out
 *.pt
