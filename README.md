@@ -1,13 +1,24 @@
-# 3D-Mapping-ATK
+# Localisation and Mapping of Signage on Train Vehicles - Innovate UK ATK Project
 
 ## Usage
 
 ### Data Folder Setup
 
-Once you have created your `.db` file, create a new folder in the `data` directory and put the `.db` file in it, renaming the file as `data.db`. Then, perform the following steps.
+1. **Create a New Folder**: Create a new folder with `<folder_name>` in the `src/common/data` directory.
+2. **Place the .db File**: Put the `.db` file in this folder and name it `data.db`.
+3. **Navigate to Root**: Change directory back to the root of the project.
+4. **Run the Shell Script**:
+    - Use `./run.sh --setup --data <folder_name>` if running for the first time.
+    - Use `./run.sh --data <folder_name>` for subsequent runs.
+
+<br />
+
+> **Note**: If you use the `--setup` flag after the first time, it still works fine, you're just wasting time with setup.
 
 <details>
-    <summary>Extract Data from RTAB-Map</summary>
+    <summary>Using the RTAB-Map GUI Instead</summary>
+
+    You can also use the RTAB-Map GUI to do this manually.
 
     cd src/common/data/<folder_name>
 
@@ -23,14 +34,6 @@ Once you have created your `.db` file, create a new folder in the `data` directo
     File -> Export Poses
     Maps graph (see Graph View)
     Camera
-
-</details>
-
-<details>
-    <summary>Run Setup Script</summary>
-
-    cd src/common/data
-    python3 setup.py --data <folder_name>
 
 </details>
 
