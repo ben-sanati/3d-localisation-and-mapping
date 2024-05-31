@@ -3,10 +3,8 @@ import os
 import pickle
 import sys
 
-import pymesh
 import numpy as np
 import open3d as o3d
-from scipy.spatial import KDTree
 
 sys.path.insert(0, r"../..")
 sys.path.append("/home/phoenix/base/active/3D-Mapping-ATK")
@@ -98,7 +96,9 @@ class Mapping:
         with o3d.utility.VerbosityContextManager(o3d.utility.VerbosityLevel.Debug):
             labels = np.array(
                 self.pcd.cluster_dbscan(
-                    eps=self.eps, min_points=self.min_points, print_progress=True,
+                    eps=self.eps,
+                    min_points=self.min_points,
+                    print_progress=True,
                 )
             )
 
@@ -117,13 +117,16 @@ class Mapping:
         # Estimate normals
         self.pcd.estimate_normals(
             search_param=o3d.geometry.KDTreeSearchParamHybrid(
-                radius=self.radius, max_nn=self.max_nn,
+                radius=self.radius,
+                max_nn=self.max_nn,
             )
         )
 
         # Apply Poisson surface reconstruction
         mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
-            self.pcd, depth=self.depth, scale=self.scale_factor,
+            self.pcd,
+            depth=self.depth,
+            scale=self.scale_factor,
         )
 
         return mesh

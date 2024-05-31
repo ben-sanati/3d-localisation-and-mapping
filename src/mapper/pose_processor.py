@@ -108,7 +108,9 @@ class ProcessPose:
             global_bboxes[frame_index] = frame_global_bboxes
 
             # Update progress bar
-            loop.set_description(f"Frame [{frame_index + 1}/{len(self.bbox_coordinates)}]")
+            loop.set_description(
+                f"Frame [{frame_index + 1}/{len(self.bbox_coordinates)}]"
+            )
 
         return global_bboxes
 
