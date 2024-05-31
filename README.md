@@ -16,7 +16,7 @@
   </tr>
 </table>
 
-<script>
+<!-- <script>
   window.onload = function() {
     var firstImage = document.getElementById("firstImage");
     var secondImage = document.getElementById("secondImage");
@@ -30,7 +30,7 @@
     secondImage.style.height = firstImageHeight + "px";
     secondImage.style.width = "auto";
   };
-</script>
+</script> -->
 
 
 ## Usage
