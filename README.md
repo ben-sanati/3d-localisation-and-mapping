@@ -1,12 +1,12 @@
 # Localisation and Mapping of Signage on Train Vehicles - Innovate UK ATK Project
 
-<table>
+<table style="width: 100%;">
   <tr>
-    <td align="center">
-      <img src="readme_img/gold_std_map.png" height="220"/>
+    <td align="center" style="width: 50%;">
+      <img id="firstImage" src="readme_img/gold_std_map.png" style="width: 100%; height: auto;"/>
     </td>
-    <td align="center">
-      <img src="readme_img/seating_map.png" height="220"/>
+    <td align="center" style="width: 50%;">
+      <img id="secondImage" src="readme_img/seating_map.png" style="width: 100%; height: auto;"/>
     </td>
   </tr>
   <tr>
@@ -15,6 +15,22 @@
     </td>
   </tr>
 </table>
+
+<script>
+  window.onload = function() {
+    var firstImage = document.getElementById("firstImage");
+    var secondImage = document.getElementById("secondImage");
+
+    var firstImageWidth = firstImage.clientWidth;
+    var firstImageHeight = firstImageWidth * 0.6;
+
+    firstImage.style.height = firstImageHeight + "px";
+    firstImage.style.width = "100%";
+
+    secondImage.style.height = firstImageHeight + "px";
+    secondImage.style.width = "auto";
+  };
+</script>
 
 
 ## Usage
