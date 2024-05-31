@@ -1,5 +1,19 @@
 # Localisation and Mapping of Signage on Train Vehicles - Innovate UK ATK Project
 
+<div style="display: flex; justify-content: center;">
+  <div style="text-align: center; margin: 10px;">
+    <img src="readme_img/gold_std_map.png" width="450"/>
+  </div>
+  <div style="text-align: center; margin: 10px;">
+    <img src="readme_img/seating_map.png" width="420"/>
+  </div>
+</div>
+<p align="center">
+  <em>Generated 3D map and signs localised in the global space.</em>
+</p>
+
+
+
 ## Usage
 
 ### Data Folder Setup

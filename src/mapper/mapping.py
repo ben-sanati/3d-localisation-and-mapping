@@ -234,7 +234,7 @@ if __name__ == "__main__":
     config_path = r"src/common/configs/variables.cfg"
     cfg = ConfigLoader(config_path, data_folder)
 
-    eps = 0.02
+    eps = 0.04
     min_points = 10
 
     # Read the variables file
@@ -251,7 +251,7 @@ if __name__ == "__main__":
         eps=eps,
         min_points=min_points,
         ply_filepath=cfg.ply_path,
-        preprocess_point_cloud=False,
+        preprocess_point_cloud=True,
         overlay_pose=False,
     )
 
