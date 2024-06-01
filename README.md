@@ -1,6 +1,8 @@
 # Localisation and Mapping of Signage on Train Vehicles - Innovate UK ATK Project
 
-![Demo Video](readme_img/LiDARMap.gif)
+<p align="center">
+  <img src="readme_img/LiDARMap.gif" alt="Demo Video"/>
+</p>
 
 <table style="width: 100%;">
   <tr>
