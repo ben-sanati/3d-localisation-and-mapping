@@ -2,7 +2,9 @@
 
 <p align="center">
   <img src="readme_img/LiDARMap.gif" alt="Demo Video"/>
-  <em>RTAB-Map Generated LiDAR scan of vehicle interior.</em>
+    <td colspan="2" align="center">
+      <em>RTAB-Map Generated LiDAR scan of vehicle interior.</em>
+    </td>
 </p>
 
 <table style="width: 100%;">
