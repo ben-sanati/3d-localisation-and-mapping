@@ -139,7 +139,7 @@ def plot_map(
     # Garbage collection
     del mapper
     gc.collect()
-    print("3D Map Generated.\n", flush=True)
+    print("3D Map Generated.", flush=True)
 
 
 if __name__ == "__main__":
