@@ -184,7 +184,7 @@ class Mapping:
                 bbox_3d = self.transforms.create_3d_bounding_box(
                     bbox, self.bbox_depth_buffer
                 )
-                bbox_lines = self.visualiser.overlay_3d_bbox(bbox_3d)
+                bbox_lines = self.visualiser.overlay_3d_bbox(bbox_3d, [1, 0, 0])
                 vis.add_geometry(bbox_lines)
 
         # Overlay optimised 3D bboxes onto point cloud
@@ -193,7 +193,10 @@ class Mapping:
             camera_position = np.array(pose_data[:3])
             for bbox in bbox_list:
                 bbox = bbox[:-2]
-                bbox_lines = self.visualiser.overlay_2d_bbox(bbox)
+                bbox_3d = self.transforms.create_3d_bounding_box(
+                    bbox, self.bbox_depth_buffer * 1.5
+                )
+                bbox_lines = self.visualiser.overlay_3d_bbox(bbox_3d, [0, 1, 0])
                 vis.add_geometry(bbox_lines)
 
         if self.overlay_pose:
@@ -254,7 +257,6 @@ if __name__ == "__main__":
 
     global_bboxes_data = variables["global_bboxes_data"]
     optimised_bboxes = variables["optimised_bboxes"]
-    print(optimised_bboxes)
     pose_df = variables["pose_df"]
 
     # Create the map

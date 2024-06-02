@@ -38,7 +38,7 @@ class BoundingBoxProcessor:
                     coords, self.bbox_depth_buffer
                 )
                 score = self._calculate_rectangular_cuboid_likeness(cube_coords)
-                if score > 0.2:
+                if score > 0.9:
                     new_bboxes[key] = self.global_bboxes[key]
                 else:
                     print(f"Removed BBox")
@@ -116,13 +116,13 @@ if __name__ == "__main__":
     global_bboxes_data = variables["global_bboxes_data"]
 
     optimise_bboxes = BoundingBoxProcessor(global_bboxes_data)
-    optimise_bboxes.suppress_bboxes()
+    optimised_bboxes = optimise_bboxes.suppress_bboxes()
 
     # Save to pickle file
     data_to_save = {
         "global_bboxes_data": global_bboxes_data,
         "pose_df": pose_df,
-        "optimise_bboxes": optimise_bboxes,
+        "optimised_bboxes": optimised_bboxes,
     }
 
     with open(cfg.pickle_path, "wb") as write_file:
