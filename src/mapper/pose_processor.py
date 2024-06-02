@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 import open3d as o3d
 from tqdm import tqdm
+from scipy.spatial import distance_matrix
 
 sys.path.insert(0, r"../..")
 
@@ -143,28 +144,6 @@ class ProcessPose:
             rgb_image_cv, depth_image_cv, intrinsics, extrinsics
         )
 
-        # # Estimate normals and generate mesh
-        # mesh = self._generate_mesh(point_cloud)
-
-        # # Extract vertices from the mesh
-        # np.set_printoptions(threshold=np.inf)
-        # vertices = np.asarray(mesh.vertices)
-
-        # # Project 3D vertices to 2D image plane
-        # projected_points = self.transforms.project_3d_to_2d(
-        #     vertices, fx, fy, cx, cy, extrinsics, depth_image_cv.shape
-        # )
-
-        # # Fill the depth image with the depth values from the mesh
-        # depth_image_cv = self.transforms.fill_depth_image(
-        #     depth_image_cv, projected_points
-        # )
-
-        # # Generate new RGBD image and point cloud
-        # rgbd_image, point_cloud = self._generate_rgbd_and_point_cloud(
-        #     rgb_image_cv, depth_image_cv, intrinsics, extrinsics
-        # )
-
         # Configure the 3D visualizer
         if self.display_3d:
             vis = o3d.visualization.VisualizerWithKeyCallback()
@@ -192,28 +171,36 @@ class ProcessPose:
 
             # Generate 3D corners with z-values from median over bbox (x, y) range
             corners_3d = [
-                self._depth_to_3d(int(x), int(y), depth_image_cv, fx, fy, cx, cy)
+                self.transforms._depth_to_3d(int(x), int(y), depth_image_cv, fx, fy, cx, cy, self.scale_depth)
                 for x, y in scaled_corners
             ]
 
-            # Get global coordinates and apply a depth buffer for visualisation
+            # Get global coordinates
             global_corners = [
                 self._transform_to_global(corner, pose_data) for corner in corners_3d
             ]
+
+            # If there are 3 coords, infer the fourth
+            camera_position = pose_data[:3]
+            post_proc_corners = self.transforms._post_bbox_processing(global_corners, camera_position)
+
+            # Apply a depth buffer for visualisation
             visualise_corners_3d = self.transforms.create_3d_bounding_box(
-                global_corners, self.bbox_depth_buffer
+                post_proc_corners, self.bbox_depth_buffer
             )
-            frame_global_bboxes.append(global_corners + bbox[-2:])
+
+            frame_global_bboxes.append(post_proc_corners + bbox[-2:])
 
             if self.verbose:
                 print(f"\tOriginal 2D Corners: {corners}")
                 print(f"\tScaled 2D Corners: {scaled_corners}")
                 print(f"\t3D Corners before Mapping: {corners_3d}")
                 print(f"\tGlobal 3D Coordinates: {global_corners}\n")
+                print(f"\tFinal 3D Coordinates:\n\t{global_corners} => {post_proc_corners}")
 
             if self.display_3d:
                 # Overlay 3D bboxes onto point cloud
-                line_set = self.visualiser.overlay_3d_bbox(visualise_corners_3d)
+                line_set = self.visualiser.overlay_3d_bbox(visualise_corners_3d, [1, 0, 0])
                 vis.add_geometry(line_set)
 
                 # Draw camera frustum
@@ -231,27 +218,6 @@ class ProcessPose:
             vis.run()
 
         return frame_global_bboxes
-
-    def _depth_to_3d(self, x, y, depth_image, fx, fy, cx, cy):
-        """
-        Converts 2D pixel coordinates from the depth image to 3D space coordinates.
-
-        Parameters:
-            x (int): X-coordinate in the 2D image.
-            y (int): Y-coordinate in the 2D image.
-            depth_image (numpy.ndarray): Depth image to convert coordinates from.
-
-        Returns:
-            numpy.ndarray: 3D coordinates [X, Y, Z] relative to the camera frame.
-        """
-        Z = depth_image[y, x] / self.scale_depth
-
-        # Convert (x, y) coordinates into 3D space based on camera intrinsic parameters
-        X = (x - cx) * Z / fx
-        Y = (y - cy) * Z / fy
-
-        # Return the 3D point as a numpy array
-        return np.array([X, Y, Z])
 
     def _transform_to_global(self, local_point, pose_data):
         """
@@ -273,19 +239,6 @@ class ProcessPose:
         global_point = (transformation @ local_point.T)[:3, 0]
         return global_point
 
-    def get_depth_from_mesh(self, mesh, bbox_corner, camera_position):
-        # Calculate the direction vector
-        direction = bbox_corner - camera_position
-        direction /= np.linalg.norm(direction)
-
-        # Generate t values
-        t_values = np.linspace(0, 5, num=500)
-
-        # Project points onto the line (use parametric equation)
-        line_points = camera_position + np.outer(t_values, direction)
-
-        return line_points
-
     def _generate_rgbd_and_point_cloud(
         self, rgb_image_cv, depth_image_cv, intrinsics, extrinsics
     ):
@@ -296,21 +249,6 @@ class ProcessPose:
             rgbd_image, intrinsics, extrinsics
         )
         return rgbd_image, point_cloud
-
-    @staticmethod
-    def _generate_mesh(point_cloud):
-        with suppress_stdout_stderr():
-            point_cloud.estimate_normals(
-                search_param=o3d.geometry.KDTreeSearchParamHybrid(
-                    radius=0.1,
-                    max_nn=30,
-                )
-            )
-            mesh, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
-                point_cloud, depth=5
-            )
-
-        return mesh
 
 
 if __name__ == "__main__":

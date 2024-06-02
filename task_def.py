@@ -9,7 +9,7 @@ from src.detector.database_query import ImageExtractor
 from src.detector.dataset import ImageDataset
 from src.detector.detector import ObjectDetector
 from src.mapper.database_query import PoseDataExtractor
-from src.mapper.nms import BoundingBoxProcessor
+from src.mapper.bbox_optimiser import BoundingBoxProcessor
 from src.mapper.mapping import Mapping
 from src.mapper.pose_processor import ProcessPose
 from src.utils.config import ConfigLoader
@@ -103,7 +103,7 @@ def map_detected_objects(
     print("Executing 3D NMS...", flush=True)
     optimise_bboxes = BoundingBoxProcessor(global_bboxes_data)
     optimised_bboxes = optimise_bboxes.suppress_bboxes()
-    print("3D NMS Executed.", flush=True)
+    print("3D NMS Executed.\n", flush=True)
 
     # Garbage collection
     del pose_processing

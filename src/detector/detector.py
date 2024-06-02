@@ -75,7 +75,7 @@ class ObjectDetector(nn.Module):
         # Preprocess images
         self._initialize_model()
         self._initialize_auxiliary_data()
-        print("\tModel Configured!", flush=True)
+        print("\tModel Configured.", flush=True)
 
     def _initialize_model(self):
         """
