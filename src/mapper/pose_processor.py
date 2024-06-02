@@ -204,7 +204,7 @@ class ProcessPose:
                 vis.add_geometry(line_set)
 
                 # Draw camera frustum
-                frustum = self.visualiser._get_camera_frustum(
+                frustum = self.visualiser._overlay_camera_frustum(
                     self.transforms.get_translation(pose_data),
                     self.transforms.get_rotation(pose_data),
                     fx,
