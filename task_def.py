@@ -103,7 +103,7 @@ def map_detected_objects(
     print("Executing 3D NMS...", flush=True)
     optimise_bboxes = BoundingBoxProcessor(global_bboxes_data, pose_df)
     optimised_bboxes = optimise_bboxes.suppress_bboxes()
-    print("3D NMS Executed.", flush=True)
+    print("3D NMS Executed.\n", flush=True)
 
     # Garbage collection
     del pose_processing
