@@ -180,23 +180,19 @@ class ProcessPose:
                 self._transform_to_global(corner, pose_data) for corner in corners_3d
             ]
 
-            # If there are 3 coords, infer the fourth
-            camera_position = pose_data[:3]
-            post_proc_corners = self.transforms._post_bbox_processing(global_corners, camera_position)
-
             # Apply a depth buffer for visualisation
             visualise_corners_3d = self.transforms.create_3d_bounding_box(
-                post_proc_corners, self.bbox_depth_buffer
+                global_corners, self.bbox_depth_buffer
             )
 
-            frame_global_bboxes.append(post_proc_corners + bbox[-2:])
+            frame_global_bboxes.append(global_corners + bbox[-2:])
 
             if self.verbose:
                 print(f"\tOriginal 2D Corners: {corners}")
                 print(f"\tScaled 2D Corners: {scaled_corners}")
                 print(f"\t3D Corners before Mapping: {corners_3d}")
                 print(f"\tGlobal 3D Coordinates: {global_corners}\n")
-                print(f"\tFinal 3D Coordinates:\n\t{global_corners} => {post_proc_corners}")
+                print(f"\tFinal 3D Coordinates:\n\t{global_corners} => {global_corners}")
 
             if self.display_3d:
                 # Overlay 3D bboxes onto point cloud
