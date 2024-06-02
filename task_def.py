@@ -9,6 +9,7 @@ from src.detector.database_query import ImageExtractor
 from src.detector.dataset import ImageDataset
 from src.detector.detector import ObjectDetector
 from src.mapper.database_query import PoseDataExtractor
+from src.mapper.nms import BoundingBoxProcessor
 from src.mapper.mapping import Mapping
 from src.mapper.pose_processor import ProcessPose
 from src.utils.config import ConfigLoader
@@ -68,7 +69,7 @@ def detect_signs(
     torch.cuda.empty_cache()
     del model
     gc.collect()
-    print("Inference Complete!\n", flush=True)
+    print("Inference Complete.\n", flush=True)
 
     return predictions
 
@@ -82,10 +83,10 @@ def map_detected_objects(
     pose_df = extractor.fetch_data()
     del extractor
     gc.collect()
-    print("Pose Information Extracted!\n", flush=True)
+    print("Pose Information Extracted.\n", flush=True)
 
     # Transform bbox coordinates to global coordinates
-    print("Processing Pose", flush=True)
+    print("Processing Pose...", flush=True)
     pose_processing = ProcessPose(
         pose=pose_df,
         dataset=dataset,
@@ -96,17 +97,24 @@ def map_detected_objects(
         display_3d=display_3d,
     )
     global_bboxes_data = pose_processing.get_global_coordinates()
+    print("Pose Processed.\n", flush=True)
+
+    # Perform 3D NMS
+    print("Executing 3D NMS...", flush=True)
+    optimise_bboxes = BoundingBoxProcessor(global_bboxes_data)
+    optimised_bboxes = optimise_bboxes.suppress_bboxes()
+    print("3D NMS Executed.", flush=True)
 
     # Garbage collection
     del pose_processing
     gc.collect()
-    print("Pose Processed!\n", flush=True)
 
-    return global_bboxes_data, pose_df
+    return global_bboxes_data, optimised_bboxes, pose_df
 
 
 def plot_map(
     global_bboxes_data,
+    optimised_bboxes,
     pose_df,
     eps,
     min_points,
@@ -118,6 +126,7 @@ def plot_map(
     print("Generating 3D Map...", flush=True)
     mapper = Mapping(
         global_bboxes_data=global_bboxes_data,
+        optimised_bboxes=optimised_bboxes,
         pose=pose_df,
         eps=eps,
         min_points=min_points,
@@ -130,7 +139,7 @@ def plot_map(
     # Garbage collection
     del mapper
     gc.collect()
-    print("3D Map Generated!\n", flush=True)
+    print("3D Map Generated.\n", flush=True)
 
 
 if __name__ == "__main__":
@@ -181,7 +190,7 @@ if __name__ == "__main__":
         img_size=cfg.img_size,
         processing=False,
     )
-    global_bboxes_data, pose_df = map_detected_objects(
+    global_bboxes_data, optimised_bboxes, pose_df = map_detected_objects(
         cfg.pose_path,
         dataset,
         predictions,
@@ -193,6 +202,7 @@ if __name__ == "__main__":
 
     # Save as pickle file and load later to use in another script
     data_to_save["global_bboxes_data"] = global_bboxes_data
+    data_to_save["optimised_bboxes"] = optimised_bboxes
     data_to_save["pose_df"] = pose_df
 
     try:
@@ -205,6 +215,7 @@ if __name__ == "__main__":
     # Plot 3D Global Map
     plot_map(
         global_bboxes_data,
+        optimised_bboxes,
         pose_df,
         cfg.eps,
         cfg.min_points,

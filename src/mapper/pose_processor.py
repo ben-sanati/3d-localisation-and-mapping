@@ -203,7 +203,7 @@ class ProcessPose:
             visualise_corners_3d = self.transforms.create_3d_bounding_box(
                 global_corners, self.bbox_depth_buffer
             )
-            frame_global_bboxes.append(global_corners)
+            frame_global_bboxes.append(global_corners + bbox[-2:])
 
             if self.verbose:
                 print(f"\tOriginal 2D Corners: {corners}")

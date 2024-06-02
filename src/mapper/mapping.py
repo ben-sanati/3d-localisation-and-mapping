@@ -18,6 +18,7 @@ class Mapping:
     def __init__(
         self,
         global_bboxes_data,
+        optimised_bboxes,
         pose,
         eps=0.04,
         min_points=1000,
@@ -37,6 +38,7 @@ class Mapping:
         self.min_points = min_points
         self.ply_filepath = ply_filepath
         self.overlay_pose = overlay_pose
+        self.optimised_bboxes = optimised_bboxes
         self.global_bboxes_data = global_bboxes_data
         self.preprocess_point_cloud = preprocess_point_cloud
 
@@ -159,30 +161,39 @@ class Mapping:
             pose_data = self.pose.iloc[frame_index]
             camera_position = np.array(pose_data[:3])
             for bbox in bbox_list:
+                bbox = bbox[:-2]
                 bbox_area = self.transforms.calculate_bbox_area(bbox)
-                if (
-                    self._is_within_threshold(
-                        bbox, camera_position, self.cam_to_bbox_min_th
-                    )
-                    or bbox_area < self.area_bbox_min_th
-                ):
-                    # Reason for removal
-                    if self._is_within_threshold(
-                        bbox, camera_position, self.cam_to_bbox_min_th
-                    ):
-                        print(
-                            "\t\tBBox removed. At least one point within threshold distance from camera."
-                        )
-                    elif bbox_area < self.area_bbox_min_th:
-                        print("\t\tBBox removed. BBox area too small.")
-                    continue
+                # if (
+                #     self._is_within_threshold(
+                #         bbox, camera_position, self.cam_to_bbox_min_th
+                #     )
+                #     or bbox_area < self.area_bbox_min_th
+                # ):
+                #     # Reason for removal
+                #     if self._is_within_threshold(
+                #         bbox, camera_position, self.cam_to_bbox_min_th
+                #     ):
+                #         print(
+                #             "\t\tBBox removed. At least one point within threshold distance from camera."
+                #         )
+                #     elif bbox_area < self.area_bbox_min_th:
+                #         print("\t\tBBox removed. BBox area too small.")
+                #     continue
 
                 # Turn 2D corners into 3D corners (with a buffer)
                 bbox_3d = self.transforms.create_3d_bounding_box(
                     bbox, self.bbox_depth_buffer
                 )
                 bbox_lines = self.visualiser.overlay_3d_bbox(bbox_3d)
-                # vis.add_geometry(sphere)
+                vis.add_geometry(bbox_lines)
+
+        # Overlay optimised 3D bboxes onto point cloud
+        for frame_index, bbox_list in self.optimised_bboxes.items():
+            pose_data = self.pose.iloc[frame_index]
+            camera_position = np.array(pose_data[:3])
+            for bbox in bbox_list:
+                bbox = bbox[:-2]
+                bbox_lines = self.visualiser.overlay_2d_bbox(bbox)
                 vis.add_geometry(bbox_lines)
 
         if self.overlay_pose:
@@ -242,16 +253,19 @@ if __name__ == "__main__":
         variables = pickle.load(file)
 
     global_bboxes_data = variables["global_bboxes_data"]
+    optimised_bboxes = variables["optimised_bboxes"]
+    print(optimised_bboxes)
     pose_df = variables["pose_df"]
 
     # Create the map
     mapper = Mapping(
         global_bboxes_data=global_bboxes_data,
+        optimised_bboxes=optimised_bboxes,
         pose=pose_df,
         eps=eps,
         min_points=min_points,
         ply_filepath=cfg.ply_path,
-        preprocess_point_cloud=True,
+        preprocess_point_cloud=False,
         overlay_pose=False,
     )
 
