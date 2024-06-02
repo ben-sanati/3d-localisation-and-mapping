@@ -10,7 +10,7 @@ sys.path.insert(0, r"../..")
 sys.path.append("/home/phoenix/base/active/3D-Mapping-ATK")
 
 from src.utils.config import ConfigLoader  # noqa
-from src.utils.transformations import VisualisationTransforms  # noqa
+from src.utils.transformations import Transforms  # noqa
 from src.utils.visualisation import Visualiser  # noqa
 
 
@@ -66,7 +66,7 @@ class Mapping:
 
         # Instance util classes
         self.visualiser = Visualiser()
-        self.transforms = VisualisationTransforms()
+        self.transforms = Transforms()
 
     def make_point_cloud(self):
         if self.preprocess_point_cloud:

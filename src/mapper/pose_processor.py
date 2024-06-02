@@ -14,7 +14,7 @@ sys.path.insert(0, r"../..")
 
 from src.detector.dataset import ImageDataset  # noqa
 from src.utils.config import ConfigLoader  # noqa
-from src.utils.transformations import VisualisationTransforms  # noqa
+from src.utils.transformations import Transforms  # noqa
 from src.utils.visualisation import Visualiser  # noqa
 
 
@@ -78,7 +78,7 @@ class ProcessPose:
 
         # Instance util classes
         self.visualiser = Visualiser()
-        self.transforms = VisualisationTransforms()
+        self.transforms = Transforms()
 
     def get_global_coordinates(self):
         loop = tqdm(self.bbox_coordinates.items(), total=len(self.bbox_coordinates))

@@ -5,7 +5,7 @@ import pandas as pd
 
 sys.path.insert(0, r"../..")
 
-from src.utils.transformations import VisualisationTransforms  # noqa
+from src.utils.transformations import Transforms  # noqa
 from src.utils.visualisation import Visualiser  # noqa
 
 
@@ -15,7 +15,7 @@ class PoseDataExtractor:
         self.pcd = o3d.geometry.PointCloud()
 
         self.visualiser = Visualiser()
-        self.transforms = VisualisationTransforms()
+        self.transforms = Transforms()
 
     def fetch_data(self):
         df = pd.read_csv(self.pose_path, sep=" ", skiprows=1, header=None)
