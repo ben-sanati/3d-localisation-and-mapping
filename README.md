@@ -17,7 +17,7 @@
   </tr>
   <tr>
     <td colspan="2" align="center">
-      <em>Generated 3D map and signs localised in the global space.</em>
+      <em>Processed 3D  and signs localised in the global space.</em>
     </td>
   </tr>
 </table>
