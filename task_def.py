@@ -8,8 +8,8 @@ import torch
 from src.detector.database_query import ImageExtractor
 from src.detector.dataset import ImageDataset
 from src.detector.detector import ObjectDetector
-from src.mapper.database_query import PoseDataExtractor
 from src.mapper.bbox_optimiser import BoundingBoxProcessor
+from src.mapper.database_query import PoseDataExtractor
 from src.mapper.mapping import Mapping
 from src.mapper.pose_processor import ProcessPose
 from src.utils.config import ConfigLoader

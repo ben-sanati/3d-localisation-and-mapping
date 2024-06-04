@@ -8,7 +8,6 @@ import cv2
 import numpy as np
 import open3d as o3d
 from tqdm import tqdm
-from scipy.spatial import distance_matrix
 
 sys.path.insert(0, r"../..")
 
@@ -171,7 +170,9 @@ class ProcessPose:
 
             # Generate 3D corners with z-values from median over bbox (x, y) range
             corners_3d = [
-                self.transforms._depth_to_3d(int(x), int(y), depth_image_cv, fx, fy, cx, cy, self.scale_depth)
+                self.transforms._depth_to_3d(
+                    int(x), int(y), depth_image_cv, fx, fy, cx, cy, self.scale_depth,
+                )
                 for x, y in scaled_corners
             ]
 
@@ -192,11 +193,15 @@ class ProcessPose:
                 print(f"\tScaled 2D Corners: {scaled_corners}")
                 print(f"\t3D Corners before Mapping: {corners_3d}")
                 print(f"\tGlobal 3D Coordinates: {global_corners}\n")
-                print(f"\tFinal 3D Coordinates:\n\t{global_corners} => {global_corners}")
+                print(
+                    f"\tFinal 3D Coordinates:\n\t{global_corners} => {global_corners}"
+                )
 
             if self.display_3d:
                 # Overlay 3D bboxes onto point cloud
-                line_set = self.visualiser.overlay_3d_bbox(visualise_corners_3d, [1, 0, 0])
+                line_set = self.visualiser.overlay_3d_bbox(
+                    visualise_corners_3d, [1, 0, 0]
+                )
                 vis.add_geometry(line_set)
 
                 # Draw camera frustum
