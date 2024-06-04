@@ -171,7 +171,14 @@ class ProcessPose:
             # Generate 3D corners with z-values from median over bbox (x, y) range
             corners_3d = [
                 self.transforms._depth_to_3d(
-                    int(x), int(y), depth_image_cv, fx, fy, cx, cy, self.scale_depth,
+                    int(x),
+                    int(y),
+                    depth_image_cv,
+                    fx,
+                    fy,
+                    cx,
+                    cy,
+                    self.scale_depth,
                 )
                 for x, y in scaled_corners
             ]
