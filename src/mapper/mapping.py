@@ -33,6 +33,7 @@ class Mapping:
         bbox_depth_buffer=0.02,
         area_bbox_min_th=0.001,
         cam_to_bbox_min_th=0.01,
+        view_unprocessed_bboxes=False,
     ):
         self.eps = eps
         self.min_points = min_points
@@ -41,6 +42,7 @@ class Mapping:
         self.optimised_bboxes = optimised_bboxes
         self.global_bboxes_data = global_bboxes_data
         self.preprocess_point_cloud = preprocess_point_cloud
+        self.view_unprocessed_bboxes = view_unprocessed_bboxes
 
         # Mesh data
         self.radius = radius
@@ -166,16 +168,17 @@ class Mapping:
         view_ctl.set_zoom(1.5)          # Camera zoom level
 
         # Overlay 3D bboxes onto point cloud
-        for frame_index, bbox_list in self.global_bboxes_data.items():
-            for bbox in bbox_list:
-                bbox = bbox[:-2]
+        if self.view_unprocessed_bboxes:
+            for frame_index, bbox_list in self.global_bboxes_data.items():
+                for bbox in bbox_list:
+                    bbox = bbox[:-2]
 
-                # Turn 2D corners into 3D corners (with a buffer)
-                bbox_3d = self.transforms.create_3d_bounding_box(
-                    bbox, self.bbox_depth_buffer
-                )
-                bbox_lines = self.visualiser.overlay_3d_bbox(bbox_3d, [1, 0, 0])
-                vis.add_geometry(bbox_lines)
+                    # Turn 2D corners into 3D corners (with a buffer)
+                    bbox_3d = self.transforms.create_3d_bounding_box(
+                        bbox, self.bbox_depth_buffer
+                    )
+                    bbox_lines = self.visualiser.overlay_3d_bbox(bbox_3d, [1, 0, 0])
+                    vis.add_geometry(bbox_lines)
 
         # Overlay optimised 3D bboxes onto point cloud
         for frame_index, bbox_list in self.optimised_bboxes.items():
