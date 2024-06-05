@@ -156,6 +156,15 @@ class Mapping:
         # Make mesh/point_cloud
         vis.add_geometry(data)
 
+        # Get the ViewControl object
+        view_ctl = vis.get_view_control()
+
+        # TODO: Set the initial view parameters to the first cameras pose data
+        view_ctl.set_front([0, 0, -1])  # Camera front vector
+        view_ctl.set_lookat([0, 0, 0])  # Camera look-at point
+        view_ctl.set_up([0, -1, 0])     # Camera up vector
+        view_ctl.set_zoom(1.5)          # Camera zoom level
+
         # Overlay 3D bboxes onto point cloud
         for frame_index, bbox_list in self.global_bboxes_data.items():
             for bbox in bbox_list:
