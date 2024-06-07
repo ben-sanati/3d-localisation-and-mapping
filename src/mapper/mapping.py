@@ -164,8 +164,8 @@ class Mapping:
         # TODO: Set the initial view parameters to the first cameras pose data
         view_ctl.set_front([0, 0, -1])  # Camera front vector
         view_ctl.set_lookat([0, 0, 0])  # Camera look-at point
-        view_ctl.set_up([0, -1, 0])     # Camera up vector
-        view_ctl.set_zoom(1.5)          # Camera zoom level
+        view_ctl.set_up([0, -1, 0])  # Camera up vector
+        view_ctl.set_zoom(1.5)  # Camera zoom level
 
         # Overlay 3D bboxes onto point cloud
         if self.view_unprocessed_bboxes:
