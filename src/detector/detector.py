@@ -1,5 +1,6 @@
 import os
 import sys
+import argparse
 
 import cv2
 import numpy as np
@@ -144,7 +145,6 @@ class ObjectDetector(nn.Module):
         data = data.cpu().numpy()
         for idx, (img, pred) in enumerate(zip(data, preds)):
             img, pred = self._parse_content(img, pred)
-
             for num_signs, (info) in enumerate(pred):
                 # add bboxes around objects
                 box = info[:4]
@@ -207,7 +207,6 @@ class ObjectDetector(nn.Module):
             img *= 255.0
 
         img = img.astype(np.uint8).copy()
-
         return img, pred
 
     def _resize_bbox(self, bbox, image_height, image_width):
@@ -218,19 +217,29 @@ class ObjectDetector(nn.Module):
         bbox[1] *= y_scale
         bbox[2] *= x_scale
         bbox[3] *= y_scale
-
         return bbox
 
 
 if __name__ == "__main__":
+    # Setup argparse config
+    parser = argparse.ArgumentParser(description="Processing Configuration")
+    parser.add_argument(
+        "--data", type=str, help="Data Folder Name.", default="gold_std"
+    )
+    args = parser.parse_args()
+    data_folder = args.data
+
+    # Load the configuration
+    os.chdir("../..")
+
     model = ObjectDetector(
         conf_thresh=0.5,
         iou_thresh=0.65,
         img_size=1280,
         batch_size=2,
         view_img=True,
-        save_img=r"../common/out/content",
-        weights=r"../common/finetuned_models/best.pt",
+        save_img=f"src/common/data/{data_folder}/processed_img",
+        weights=r"src/common/finetuned_models/best.pt",
     )
 
     # run inference
