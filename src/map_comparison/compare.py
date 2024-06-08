@@ -15,8 +15,10 @@ from src.utils.config import ConfigLoader  # noqa
 
 
 class Comparison:
-    def __init__(self, pose_df, optimised_bboxes, voxel_size=0.05, base_map_name="gold_std"):
-        self.pose_df = pose_df
+    def __init__(self, base_pose_df, comparison_pose_df, optimised_bboxes, voxel_size=0.05, base_map_name="gold_std"):
+        # TODO: Change the variable structure such that you pass in a dict of {base: val, comparison: val}
+        self.base_pose_df = base_pose_df
+        self.comparison_pose_df = comparison_pose_df
         self.voxel_size = voxel_size
         self.optimised_bboxes = optimised_bboxes
         self.base_map_filepath = self._parse_filepaths(base_map_name)
@@ -37,6 +39,11 @@ class Comparison:
         return map
 
     def compare(self, comparison_map_name):
+        # TODO: Change algorithm such that
+        # 1. We orient the bbox positions such that they first align
+        # 2. Calculate the transformation to the bbox positions to do this
+        # 3. Use this as the initial transformation and then perform ICP
+        # 4. Apply the ICP transformation to the bboxes
         comparison_map_filepath = self._parse_filepaths(comparison_map_name)
 
         # Load Point Clouds
@@ -50,10 +57,10 @@ class Comparison:
         comparison_map_down = self._preprocess_point_cloud(comparison_map)
 
         # Get extreme poses for initial alignment
-        start_pose_source, end_pose_source = self._get_extreme_poses()
-        start_pose_target, end_pose_target = self._get_extreme_poses()
+        start_pose_base, end_pose_base = self._get_extreme_poses(self.base_pose_df)
+        start_pose_comparison, end_pose_comparison = self._get_extreme_poses(self.comparison_pose_df)
 
-        initial_transformation = self._compute_initial_transformation(start_pose_source, end_pose_source, start_pose_target, end_pose_target)
+        initial_transformation = self._compute_initial_transformation(start_pose_base, end_pose_base, start_pose_comparison, end_pose_comparison)
 
         # Apply initial transformation to the comparison map
         comparison_map_down.transform(initial_transformation)
@@ -87,10 +94,10 @@ class Comparison:
         )
         return pcd_down
 
-    def _get_extreme_poses(self):
+    def _get_extreme_poses(self, pose_df):
         # Identify poses at the extremities (e.g., first and last rows)
-        start_pose = self.pose_df.iloc[0]
-        end_pose = self.pose_df.iloc[-1]
+        start_pose = pose_df.iloc[0]
+        end_pose = pose_df.iloc[-1]
 
         # Extract translation and rotation (quaternion) for both poses
         start_translation = start_pose[['tx', 'ty', 'tz']].values
@@ -101,14 +108,14 @@ class Comparison:
 
         return (start_translation, start_quaternion), (end_translation, end_quaternion)
 
-    def _compute_initial_transformation(self, start_pose_source, end_pose_source, start_pose_target, end_pose_target):
+    def _compute_initial_transformation(self, start_pose_base, end_pose_base, start_pose_comparison, end_pose_comparison):
         # Compute translation
-        translation = start_pose_target[0] - start_pose_source[0]
+        translation = start_pose_comparison[0] - start_pose_base[0]
 
         # Compute rotation (assuming both rotations are provided as quaternions)
-        rotation_source = R.from_quat(start_pose_source[1])
-        rotation_target = R.from_quat(start_pose_target[1])
-        rotation = rotation_target * rotation_source.inv()
+        rotation_base = R.from_quat(start_pose_base[1])
+        rotation_comparison = R.from_quat(start_pose_comparison[1])
+        rotation = rotation_comparison * rotation_base.inv()
 
         # Create the 4x4 transformation matrix
         transformation = np.eye(4)
@@ -146,13 +153,20 @@ if __name__ == "__main__":
     cfg = ConfigLoader(config_path, data_folder)
 
     with open(cfg.pickle_path, "rb") as read_file:
-        variables = pickle.load(read_file)
+        comparison_variables = pickle.load(read_file)
 
-    pose_df = variables["pose_df"]
-    optimised_bboxes = variables["optimised_bboxes"]
+    comparison_pose_df = comparison_variables["pose_df"]
+    comparison_optimised_bboxes = comparison_variables["optimised_bboxes"]
+
+    cfg = ConfigLoader(config_path, "gold_std")
+    with open(cfg.pickle_path, "rb") as read_file:
+        base_variables = pickle.load(read_file)
+
+    base_pose_df = comparison_variables["pose_df"]
 
     map_comparison = Comparison(
-        pose_df=pose_df,
-        optimised_bboxes=optimised_bboxes,
+        base_pose_df=base_pose_df,
+        comparison_pose_df=comparison_pose_df,
+        optimised_bboxes=comparison_optimised_bboxes,
     )
     map_comparison.compare(data_folder)
