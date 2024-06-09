@@ -80,7 +80,9 @@ class Comparison:
         # Align Point Clouds
         print("Aligning point clouds.")
         transformation = self._align_point_clouds(
-            comparison_map_down, base_map_down, initial_transformation,
+            comparison_map_down,
+            base_map_down,
+            initial_transformation,
         )
 
         # Apply transformation to the comparison map
@@ -101,7 +103,7 @@ class Comparison:
     def _preprocess_point_cloud(self, pcd):
         # Downsample the point cloud
         pcd_down = pcd.voxel_down_sample(voxel_size=self.voxel_size)
-        
+
         # Estimate normals
         pcd_down.estimate_normals(
             search_param=o3d.geometry.KDTreeSearchParamHybrid(
