@@ -2,11 +2,9 @@ import argparse
 import os
 import pickle
 import sys
-import copy
 
 import numpy as np
 import open3d as o3d
-import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation as R
 
 sys.path.insert(0, r"../..")
@@ -15,7 +13,14 @@ from src.utils.config import ConfigLoader  # noqa
 
 
 class Comparison:
-    def __init__(self, base_pose_df, comparison_pose_df, optimised_bboxes, voxel_size=0.05, base_map_name="gold_std"):
+    def __init__(
+        self,
+        base_pose_df,
+        comparison_pose_df,
+        optimised_bboxes,
+        voxel_size=0.05,
+        base_map_name="gold_std",
+    ):
         # TODO: Change the variable structure such that you pass in a dict of {base: val, comparison: val}
         self.base_pose_df = base_pose_df
         self.comparison_pose_df = comparison_pose_df
@@ -58,16 +63,25 @@ class Comparison:
 
         # Get extreme poses for initial alignment
         start_pose_base, end_pose_base = self._get_extreme_poses(self.base_pose_df)
-        start_pose_comparison, end_pose_comparison = self._get_extreme_poses(self.comparison_pose_df)
+        start_pose_comparison, end_pose_comparison = self._get_extreme_poses(
+            self.comparison_pose_df,
+        )
 
-        initial_transformation = self._compute_initial_transformation(start_pose_base, end_pose_base, start_pose_comparison, end_pose_comparison)
+        initial_transformation = self._compute_initial_transformation(
+            start_pose_base,
+            end_pose_base,
+            start_pose_comparison,
+            end_pose_comparison,
+        )
 
         # Apply initial transformation to the comparison map
         comparison_map_down.transform(initial_transformation)
 
         # Align Point Clouds
         print("Aligning point clouds.")
-        transformation = self._align_point_clouds(comparison_map_down, base_map_down, initial_transformation)
+        transformation = self._align_point_clouds(
+            comparison_map_down, base_map_down, initial_transformation,
+        )
 
         # Apply transformation to the comparison map
         print("Applying transformations.")
@@ -90,7 +104,9 @@ class Comparison:
         
         # Estimate normals
         pcd_down.estimate_normals(
-            search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=self.voxel_size * 2, max_nn=30)
+            search_param=o3d.geometry.KDTreeSearchParamHybrid(
+                radius=self.voxel_size * 2, max_nn=30
+            )
         )
         return pcd_down
 
@@ -100,15 +116,21 @@ class Comparison:
         end_pose = pose_df.iloc[-1]
 
         # Extract translation and rotation (quaternion) for both poses
-        start_translation = start_pose[['tx', 'ty', 'tz']].values
-        start_quaternion = start_pose[['qw', 'qx', 'qy', 'qz']].values
+        start_translation = start_pose[["tx", "ty", "tz"]].values
+        start_quaternion = start_pose[["qw", "qx", "qy", "qz"]].values
 
-        end_translation = end_pose[['tx', 'ty', 'tz']].values
-        end_quaternion = end_pose[['qw', 'qx', 'qy', 'qz']].values
+        end_translation = end_pose[["tx", "ty", "tz"]].values
+        end_quaternion = end_pose[["qw", "qx", "qy", "qz"]].values
 
         return (start_translation, start_quaternion), (end_translation, end_quaternion)
 
-    def _compute_initial_transformation(self, start_pose_base, end_pose_base, start_pose_comparison, end_pose_comparison):
+    def _compute_initial_transformation(
+        self,
+        start_pose_base,
+        end_pose_base,
+        start_pose_comparison,
+        end_pose_comparison,
+    ):
         # Compute translation
         translation = start_pose_comparison[0] - start_pose_base[0]
 
@@ -129,8 +151,11 @@ class Comparison:
 
         # Perform ICP alignment (point-to-plane method)
         reg_p2p = o3d.pipelines.registration.registration_icp(
-            source, target, threshold, initial_transformation,
-            o3d.pipelines.registration.TransformationEstimationPointToPlane()
+            source,
+            target,
+            threshold,
+            initial_transformation,
+            o3d.pipelines.registration.TransformationEstimationPointToPlane(),
         )
         return reg_p2p.transformation
 
