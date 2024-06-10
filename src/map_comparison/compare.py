@@ -2,9 +2,11 @@ import argparse
 import os
 import pickle
 import sys
+import logging
 
 import numpy as np
 import open3d as o3d
+from sklearn.decomposition import PCA
 from scipy.spatial.transform import Rotation as R
 
 sys.path.insert(0, r"../..")
@@ -17,16 +19,24 @@ class Comparison:
         self,
         base_pose_df,
         comparison_pose_df,
-        optimised_bboxes,
+        base_bboxes,
+        comparison_bboxes,
         voxel_size=0.05,
+        distance_threshold=50,
         base_map_name="gold_std",
     ):
         # TODO: Change the variable structure such that you pass in a dict of {base: val, comparison: val}
-        self.base_pose_df = base_pose_df
-        self.comparison_pose_df = comparison_pose_df
+        self.pose_df = {"base": base_pose_df, "comparison": comparison_pose_df}
+        self.optimised_bboxes = {"base": base_bboxes, "comparison": comparison_bboxes}
         self.voxel_size = voxel_size
-        self.optimised_bboxes = optimised_bboxes
+        self.distance_threshold = distance_threshold  # Distance threshold for ICP
         self.base_map_filepath = self._parse_filepaths(base_map_name)
+
+        # Initialize logging
+        logging.basicConfig(level=logging.INFO)
+        self.logger = logging.getLogger(__name__)
+        self.logger.info("Comparison class initialized")
+        o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
 
     @staticmethod
     def _parse_filepaths(data_folder):
@@ -49,117 +59,102 @@ class Comparison:
         # 2. Calculate the transformation to the bbox positions to do this
         # 3. Use this as the initial transformation and then perform ICP
         # 4. Apply the ICP transformation to the bboxes
-        comparison_map_filepath = self._parse_filepaths(comparison_map_name)
+        # Load point clouds
+        self.logger.info("Loading base and comparison point clouds")
+        base_pcd = self._load_pc(self.base_map_filepath)
+        comparison_pcd = self._load_pc(self._parse_filepaths(comparison_map_name))
 
-        # Load Point Clouds
-        print("Loading point clouds.")
-        base_map = self._load_pc(self.base_map_filepath)
-        comparison_map = self._load_pc(comparison_map_filepath)
+        self.logger.info("Aligning mean positions of point clouds")
+        aligned_comparison_pcd = self._align_mean_positions(comparison_pcd, base_pcd)
 
-        # Preprocess Point Clouds
-        print("Preprocessing point clouds.")
-        base_map_down = self._preprocess_point_cloud(base_map)
-        comparison_map_down = self._preprocess_point_cloud(comparison_map)
+        self.logger.info("Aligning principal axes of point clouds")
+        aligned_comparison_pcd = self._align_principal_axes(aligned_comparison_pcd, base_pcd)
 
-        # Get extreme poses for initial alignment
-        start_pose_base, end_pose_base = self._get_extreme_poses(self.base_pose_df)
-        start_pose_comparison, end_pose_comparison = self._get_extreme_poses(
-            self.comparison_pose_df,
+        self.logger.info("Performing fine registration (ICP)")
+        result_icp = self._refine_registration(aligned_comparison_pcd, base_pcd, self.voxel_size)
+
+        self.logger.info(f"ICP Transformation:\n{result_icp.transformation}")
+
+        self.logger.info("Transforming comparison point cloud")
+        aligned_comparison_pcd.transform(result_icp.transformation)
+
+        self.logger.info("Converting point clouds to meshes")
+        base_mesh = self._create_mesh_from_point_cloud(base_pcd)
+        comparison_mesh = self._create_mesh_from_point_cloud(aligned_comparison_pcd)
+
+        self.logger.info("Coloring meshes for visualization")
+        base_mesh.paint_uniform_color([1, 0, 0])  # Red
+        comparison_mesh.paint_uniform_color([0, 1, 0])  # Green
+
+        self.logger.info("Visualizing aligned meshes")
+        o3d.visualization.draw_geometries([base_mesh, comparison_mesh])
+
+        # Restore the verbosity level after the process is done
+        o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Error)
+
+    @staticmethod
+    def _downsample(pcd, voxel_size):
+        logging.info(f"Downsampling point cloud with voxel size: {voxel_size}")
+        return pcd.voxel_down_sample(voxel_size)
+
+    def _align_mean_positions(self, source, target):
+        source_mean = np.mean(np.asarray(source.points), axis=0)
+        target_mean = np.mean(np.asarray(target.points), axis=0)
+
+        logging.info(f"Source mean position: {source_mean}")
+        logging.info(f"Target mean position: {target_mean}")
+
+        translation = target_mean - source_mean
+        logging.info(f"Translating source by: {translation}")
+
+        source.translate(translation)
+
+        return source
+
+    def _align_principal_axes(self, source, target):
+        source_points = np.asarray(source.points)
+        target_points = np.asarray(target.points)
+
+        pca_source = PCA(n_components=3).fit(source_points)
+        pca_target = PCA(n_components=3).fit(target_points)
+
+        source_rotation = pca_source.components_.T
+        target_rotation = pca_target.components_.T
+
+        logging.info(f"Source principal axes:\n{source_rotation}")
+        logging.info(f"Target principal axes:\n{target_rotation}")
+
+        # Compute rotation matrix to align source to target
+        rotation_matrix = np.dot(target_rotation, source_rotation.T)
+        center = np.mean(source_points, axis=0)
+        source.rotate(rotation_matrix, center=center)
+
+        return source
+
+    def _refine_registration(self, source, target, voxel_size):
+        distance_threshold = voxel_size * 0.4
+        logging.info("Refining registration using ICP")
+        result = o3d.pipelines.registration.registration_icp(
+            source, target, distance_threshold,
+            np.eye(4),  # Initial alignment is identity since we aligned the means
+            o3d.pipelines.registration.TransformationEstimationPointToPlane()
         )
+        logging.info("ICP registration complete")
+        return result
 
-        initial_transformation = self._compute_initial_transformation(
-            start_pose_base,
-            end_pose_base,
-            start_pose_comparison,
-            end_pose_comparison,
-        )
-
-        # Apply initial transformation to the comparison map
-        comparison_map_down.transform(initial_transformation)
-
-        # Align Point Clouds
-        print("Aligning point clouds.")
-        transformation = self._align_point_clouds(
-            comparison_map_down,
-            base_map_down,
-            initial_transformation,
-        )
-
-        # Apply transformation to the comparison map
-        print("Applying transformations.")
-        comparison_map.transform(transformation)
-
-        # Set colors for visualization
-        base_map.paint_uniform_color([1, 0, 0])  # Red for base map
-        comparison_map.paint_uniform_color([0, 1, 0])  # Green for comparison map
-
-        # Visualize the aligned point clouds (optional)
-        print("Visualising the maps.")
-        o3d.visualization.draw_geometries([base_map, comparison_map])
-
-        # Returning the transformation for further use if needed
-        return transformation
-
-    def _preprocess_point_cloud(self, pcd):
-        # Downsample the point cloud
-        pcd_down = pcd.voxel_down_sample(voxel_size=self.voxel_size)
-
-        # Estimate normals
-        pcd_down.estimate_normals(
-            search_param=o3d.geometry.KDTreeSearchParamHybrid(
-                radius=self.voxel_size * 2, max_nn=30
-            )
-        )
-        return pcd_down
-
-    def _get_extreme_poses(self, pose_df):
-        # Identify poses at the extremities (e.g., first and last rows)
-        start_pose = pose_df.iloc[0]
-        end_pose = pose_df.iloc[-1]
-
-        # Extract translation and rotation (quaternion) for both poses
-        start_translation = start_pose[["tx", "ty", "tz"]].values
-        start_quaternion = start_pose[["qw", "qx", "qy", "qz"]].values
-
-        end_translation = end_pose[["tx", "ty", "tz"]].values
-        end_quaternion = end_pose[["qw", "qx", "qy", "qz"]].values
-
-        return (start_translation, start_quaternion), (end_translation, end_quaternion)
-
-    def _compute_initial_transformation(
-        self,
-        start_pose_base,
-        end_pose_base,
-        start_pose_comparison,
-        end_pose_comparison,
-    ):
-        # Compute translation
-        translation = start_pose_comparison[0] - start_pose_base[0]
-
-        # Compute rotation (assuming both rotations are provided as quaternions)
-        rotation_base = R.from_quat(start_pose_base[1])
-        rotation_comparison = R.from_quat(start_pose_comparison[1])
-        rotation = rotation_comparison * rotation_base.inv()
-
-        # Create the 4x4 transformation matrix
-        transformation = np.eye(4)
-        transformation[:3, :3] = rotation.as_matrix()
-        transformation[:3, 3] = translation
-
-        return transformation
-
-    def _align_point_clouds(self, source, target, initial_transformation):
-        threshold = 50  # Distance threshold for ICP
-
-        # Perform ICP alignment (point-to-plane method)
-        reg_p2p = o3d.pipelines.registration.registration_icp(
-            source,
-            target,
-            threshold,
-            initial_transformation,
-            o3d.pipelines.registration.TransformationEstimationPointToPlane(),
-        )
-        return reg_p2p.transformation
+    @staticmethod
+    def _create_mesh_from_point_cloud(pcd):
+        logging.info("Creating mesh from point cloud using Poisson reconstruction")
+        pcd.estimate_normals()
+        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=9)
+        
+        # Optional: remove low density vertices to clean up the mesh
+        densities = np.asarray(densities)
+        vertices_to_remove = densities < np.mean(densities)
+        mesh.remove_vertices_by_mask(vertices_to_remove)
+        
+        mesh.compute_vertex_normals()
+        return mesh
 
 
 if __name__ == "__main__":
@@ -189,11 +184,13 @@ if __name__ == "__main__":
     with open(cfg.pickle_path, "rb") as read_file:
         base_variables = pickle.load(read_file)
 
-    base_pose_df = comparison_variables["pose_df"]
+    base_pose_df = base_variables["pose_df"]
+    base_optimised_bboxes = base_variables["optimised_bboxes"]
 
     map_comparison = Comparison(
         base_pose_df=base_pose_df,
         comparison_pose_df=comparison_pose_df,
-        optimised_bboxes=comparison_optimised_bboxes,
+        base_bboxes=base_optimised_bboxes,
+        comparison_bboxes=comparison_optimised_bboxes,
     )
     map_comparison.compare(data_folder)
