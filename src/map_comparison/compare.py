@@ -3,6 +3,7 @@ import os
 import pickle
 import sys
 import logging
+import copy
 
 import numpy as np
 import open3d as o3d
@@ -25,7 +26,6 @@ class Comparison:
         distance_threshold=50,
         base_map_name="gold_std",
     ):
-        # TODO: Change the variable structure such that you pass in a dict of {base: val, comparison: val}
         self.pose_df = {"base": base_pose_df, "comparison": comparison_pose_df}
         self.optimised_bboxes = {"base": base_bboxes, "comparison": comparison_bboxes}
         self.voxel_size = voxel_size
@@ -64,11 +64,17 @@ class Comparison:
         base_pcd = self._load_pc(self.base_map_filepath)
         comparison_pcd = self._load_pc(self._parse_filepaths(comparison_map_name))
 
-        self.logger.info("Aligning mean positions of point clouds")
-        aligned_comparison_pcd = self._align_mean_positions(comparison_pcd, base_pcd)
-
         self.logger.info("Aligning principal axes of point clouds")
-        aligned_comparison_pcd = self._align_principal_axes(aligned_comparison_pcd, base_pcd)
+        aligned_comparison_pcd = self._align_principal_axes(comparison_pcd, base_pcd)
+
+        self.logger.info("Aligning mean positions of point clouds")
+        aligned_comparison_pcd = self._align_mean_positions(aligned_comparison_pcd, base_pcd)
+
+        self.logger.info("Iteratively shifting along principal components for optimal fit")
+        best_transformation = self._shift_along_principal_components(aligned_comparison_pcd, base_pcd)
+
+        self.logger.info("Applying the best initial transformation")
+        aligned_comparison_pcd.transform(best_transformation)
 
         self.logger.info("Performing fine registration (ICP)")
         result_icp = self._refine_registration(aligned_comparison_pcd, base_pcd, self.voxel_size)
@@ -131,15 +137,51 @@ class Comparison:
 
         return source
 
-    def _refine_registration(self, source, target, voxel_size):
-        distance_threshold = voxel_size * 0.4
-        logging.info("Refining registration using ICP")
+    def _shift_along_principal_components(self, source, target):
+        pca_source = PCA(n_components=3).fit(np.asarray(source.points))
+        principal_components = pca_source.components_
+
+        best_fit_score = -np.inf
+        best_transformation = np.eye(4)
+
+        # Define the range and step size for shifting along the principal component
+        shift_range = np.linspace(-5, 5, num=100)
+        for shift in shift_range:
+            temp_source = copy.deepcopy(source)
+            temp_source.translate(principal_components[0] * shift)
+            fit_score = self._evaluate_fit(temp_source, target)
+            logging.info(f"Testing shift: {shift}\tFit score: {fit_score}")
+            if fit_score > best_fit_score:
+                best_fit_score = fit_score
+                best_transformation = np.eye(4)
+                best_transformation[:3, 3] = principal_components[0] * shift
+
+        logging.info(f"Best transformation found with fit score: {best_fit_score}")
+        return best_transformation
+
+    def _evaluate_fit(self, source, target):
+        distance_threshold = self.voxel_size * 0.4
+        # Perform ICP with 0 iterations to get the fitness score
         result = o3d.pipelines.registration.registration_icp(
             source, target, distance_threshold,
-            np.eye(4),  # Initial alignment is identity since we aligned the means
-            o3d.pipelines.registration.TransformationEstimationPointToPlane()
+            np.eye(4),
+            o3d.pipelines.registration.TransformationEstimationPointToPlane(),
+            o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=1)
         )
-        logging.info("ICP registration complete")
+        return result.fitness
+
+    def _refine_registration(self, source, target, voxel_size, initial_transformation=np.eye(4)):
+        distance_threshold = voxel_size * 0.4
+        logging.info("Refining registration using ICP with convergence criteria")
+
+        result = o3d.pipelines.registration.registration_icp(
+            source, target, distance_threshold,
+            initial_transformation,
+            o3d.pipelines.registration.TransformationEstimationPointToPlane(),
+            o3d.pipelines.registration.ICPConvergenceCriteria()
+        )
+
+        logging.info(f"ICP registration complete with fitness: {result.fitness}")
         return result
 
     @staticmethod
