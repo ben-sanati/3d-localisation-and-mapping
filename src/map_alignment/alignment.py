@@ -66,35 +66,23 @@ class Alignment:
         comparison_pcd = self._load_pc(self._parse_filepaths(comparison_map_name))
 
         # Initial point cloud alignment
-        self.logger.info("Aligning principal axes of point clouds")
+        self.logger.info("Calculating point cloud alignment.")
         pca_rotation_matrix, center = self.alignment._align_principal_axes(comparison_pcd, base_pcd)
-        comparison_pcd.rotate(pca_rotation_matrix, center=center)
-
-        self.logger.info("Aligning mean positions of point clouds")
         mean_position_transformation = self.alignment._align_mean_positions(comparison_pcd, base_pcd)
-        comparison_pcd.transform(mean_position_transformation)
-
-        self.logger.info("Iteratively shifting along principal components for optimal fit")
         best_transformation = self.alignment._shift_along_principal_components(comparison_pcd, base_pcd, self.voxel_size)
-
-        self.logger.info("Applying the best initial transformation")
-        comparison_pcd.transform(best_transformation)
-
-        self.logger.info("Transforming comparison bounding boxes")
-        transformed_bboxes_comparison = self.alignment._rotate_bboxes(pca_rotation_matrix, self.optimised_bboxes['comparison'], center)
-        transformed_bboxes_comparison = self.alignment._transform_bboxes(mean_position_transformation, transformed_bboxes_comparison)
-        transformed_bboxes_comparison = self.alignment._transform_bboxes(best_transformation, transformed_bboxes_comparison)
-
-        self.logger.info("Performing fine registration (ICP)")
         result_icp = self.alignment._refine_registration(comparison_pcd, base_pcd, self.voxel_size)
 
-        self.logger.info(f"ICP Transformation:\n{result_icp.transformation}")
-
-        self.logger.info("Transforming comparison point cloud")
+        self.logger.info("Performing point cloud alignment.")
+        comparison_pcd.rotate(pca_rotation_matrix, center=center)
+        comparison_pcd.transform(mean_position_transformation)
+        comparison_pcd.transform(best_transformation)
         comparison_pcd.transform(result_icp.transformation)
 
-        self.logger.info("Transforming comparison bounding boxes again after ICP")
-        transformed_bboxes_comparison = self.alignment._transform_bboxes(result_icp.transformation, transformed_bboxes_comparison)
+        self.logger.info("Transforming comparison bounding boxes.")
+        transformed_bboxes_comparison = self.alignment._rotate_bboxes(pca_rotation_matrix, self.optimised_bboxes['comparison'], center)
+        transformed_bboxes_comparison = self.alignment._transform_bboxes(mean_position_transformation, transformed_bboxes_comparison)
+        # transformed_bboxes_comparison = self.alignment._transform_bboxes(best_transformation, transformed_bboxes_comparison)
+        # transformed_bboxes_comparison = self.alignment._transform_bboxes(result_icp.transformation, transformed_bboxes_comparison)
 
         self.logger.info("Converting point clouds to meshes")
         base_mesh = self.alignment._create_mesh_from_point_cloud(base_pcd)
@@ -110,7 +98,7 @@ class Alignment:
 
         self.logger.info("Visualizing aligned meshes and bounding boxes")
         self.vis.create_window()
-        self.vis.add_geometry(base_mesh)
+        # self.vis.add_geometry(base_mesh)
         self.vis.add_geometry(comparison_mesh)
         for bbox_lines in base_bboxes_lines:
             self.vis.add_geometry(bbox_lines)
