@@ -13,13 +13,23 @@ from src.utils.visualisation import Visualiser  # noqa
 
 
 class BBoxComparison:
-    def __init__(self, base_bboxes, comparison_bboxes, base_mesh, comparison_mesh, bbox_depth_buffer=0.02, area_threshold=0.5):
+    def __init__(
+        self,
+        base_bboxes,
+        comparison_bboxes,
+        base_mesh,
+        comparison_mesh,
+        bbox_depth_buffer=0.05,
+        area_threshold=1e-2, # 1cm^2 diff ~ 10cm difference in bbox lengths
+        k_closest=5,
+    ):
         self.base_bboxes = base_bboxes
         self.comparison_bboxes = comparison_bboxes
         self.base_mesh = base_mesh
         self.comparison_mesh = comparison_mesh
         self.bbox_depth_buffer = bbox_depth_buffer
         self.area_threshold = area_threshold
+        self.k_closest = k_closest
         self.matches = {}
         self.color_map = {}
 
@@ -59,12 +69,20 @@ class BBoxComparison:
         for frame_id, comp_bbox_list in self.comparison_bboxes.items():
             for comp_bbox in comp_bbox_list:
                 comp_centroid = self._calculate_centroid(comp_bbox)
-                distances, indices = base_tree.query(comp_centroid, k=1)
-                base_bbox = base_bbox_list[indices]
-
-                # Criteria check: Classification and area
-                if comp_bbox[-1] == base_bbox[-1] and abs(self._calculate_area(comp_bbox) - self._calculate_area(base_bbox)) < self.area_threshold:
-                    self.matches[(frame_id, tuple(comp_centroid))] = (indices, tuple(base_centroids[indices]))
+                distances, indices = base_tree.query(comp_centroid, k=self.k_closest)
+                
+                # Find the best match among the k nearest neighbors
+                best_match = None
+                for i in range(self.k_closest):
+                    base_bbox = base_bbox_list[indices[i]]
+                    if (
+                        comp_bbox[-1] == base_bbox[-1]
+                        and abs(self._calculate_area(comp_bbox) - self._calculate_area(base_bbox))
+                        < self.area_threshold
+                    ):
+                        best_match = (indices[i], tuple(base_centroids[indices[i]]))
+                        self.matches[(frame_id, tuple(comp_centroid))] = best_match
+                        break
 
         self.logger.info(f"Matches: {self.matches}")
 
@@ -77,7 +95,7 @@ class BBoxComparison:
         vis.create_window()
 
         vis.add_geometry(self.base_mesh)
-        vis.add_geometry(self.comparison_mesh)
+        # vis.add_geometry(self.comparison_mesh)
 
         # Add base bboxes
         for frame_id, bbox_list in self.base_bboxes.items():
@@ -110,7 +128,7 @@ class BBoxComparison:
             vis.add_geometry(line_set)
 
             # Sphere at comparison centroid
-            sphere_comp = o3d.geometry.TriangleMesh.create_sphere(radius=0.02)
+            sphere_comp = o3d.geometry.TriangleMesh.create_sphere(radius=0.01)
             sphere_comp.translate(comp_centroid)
             sphere_comp.paint_uniform_color([0, 1, 0])  # Green color for comparison centroid
             vis.add_geometry(sphere_comp)
