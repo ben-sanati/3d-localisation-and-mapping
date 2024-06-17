@@ -27,7 +27,7 @@ class Mapping:
         overlay_pose=False,
         radius=0.1,
         max_nn=30,
-        depth=10,  # Increase this for higher resolution meshes
+        depth=11,  # Increase this for higher resolution meshes
         scale_factor=1.0,
         # In cm:
         bbox_depth_buffer=0.02,
