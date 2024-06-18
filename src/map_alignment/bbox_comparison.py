@@ -128,13 +128,13 @@ class BBoxComparison:
             vis.add_geometry(line_set)
 
             # Sphere at comparison centroid
-            sphere_comp = o3d.geometry.TriangleMesh.create_sphere(radius=0.01)
+            sphere_comp = o3d.geometry.TriangleMesh.create_sphere(radius=0.015)
             sphere_comp.translate(comp_centroid)
             sphere_comp.paint_uniform_color([0, 1, 0])  # Green color for comparison centroid
             vis.add_geometry(sphere_comp)
 
             # Sphere at base centroid
-            sphere_base = o3d.geometry.TriangleMesh.create_sphere(radius=0.02)
+            sphere_base = o3d.geometry.TriangleMesh.create_sphere(radius=0.015)
             sphere_base.translate(base_centroid)
             sphere_base.paint_uniform_color([1, 0, 0])  # Red color for base centroid
             vis.add_geometry(sphere_base)

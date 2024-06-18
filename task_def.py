@@ -223,3 +223,7 @@ if __name__ == "__main__":
         cfg.preprocess_point_cloud,
         cfg.overlay_pose,
     )
+
+    # TODO: integrate bbox comparison methods
+    # TODO: automate csv results production
+    # TODO: define pipeline for gold_std vs. maintenance runs
