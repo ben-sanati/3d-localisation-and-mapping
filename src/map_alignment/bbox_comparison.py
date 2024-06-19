@@ -1,5 +1,6 @@
 import logging
 import sys
+import csv
 import random
 import numpy as np
 import open3d as o3d
@@ -23,6 +24,7 @@ class BBoxComparison:
         area_threshold=1e-2, # 1cm^2 diff ~ 10cm difference in bbox lengths
         k_closest=5,
         visualise=False,
+        output_file="src/common/results/debug.csv",
     ):
         self.base_bboxes = base_bboxes
         self.comparison_bboxes = comparison_bboxes
@@ -32,6 +34,8 @@ class BBoxComparison:
         self.area_threshold = area_threshold
         self.k_closest = k_closest
         self.visualise = visualise
+        self.output_file = output_file
+
         self.matches = {}
         self.color_map = {}
         self.matched_base_indices = set()
@@ -105,9 +109,14 @@ class BBoxComparison:
         ]
         self.logger.info(f"Unmatched base bboxes: {unmatched_base_bboxes}")
 
+        # Output results to csv
+        self.generate_csv()
+
         # Visualise the bboxes and meshes
         if self.visualise:
             self._visualise_bboxes()
+
+        return self.matches, unmatched_base_bboxes
 
     def _visualise_bboxes(self):
         self.logger.info("Visualizing bounding boxes and meshes")
@@ -174,3 +183,36 @@ class BBoxComparison:
         if classification not in self.color_map:
             self.color_map[classification] = [random.random() for _ in range(3)]
         return self.color_map[classification]
+
+    def generate_csv(self):
+        """
+        Generate a CSV file with columns for base bboxes and matched bboxes.
+        """
+        base_bboxes_data = [
+            {
+                'classification': bbox[-1],
+                'coordinates': tuple(self._calculate_centroid(bbox))
+            }
+            for bbox_list in self.base_bboxes.values() for bbox in bbox_list
+        ]
+        
+        matched_bboxes_data = [
+            {
+                'classification': self.matches[(comp_frame_id, comp_data)][1][0],
+                'coordinates': tuple(self.matches[(comp_frame_id, comp_data)][1][1])
+            }
+            if (comp_frame_id, comp_data) in self.matches else None
+            for comp_frame_id, comp_bbox_list in self.comparison_bboxes.items()
+            for comp_data in [(bbox[-1], tuple(self._calculate_centroid(bbox))) for bbox in comp_bbox_list]
+        ]
+
+        with open(self.output_file, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(['Signs', 'Matched Signs'])
+
+            for base_data, matched_data in zip(base_bboxes_data, matched_bboxes_data):
+                base_entry = f"{base_data['classification']} - {base_data['coordinates']}"
+                matched_entry = f"{matched_data['classification']} - {matched_data['coordinates']}" if matched_data else ''
+                writer.writerow([base_entry, matched_entry])
+
+        self.logger.info(f"CSV file generated at {self.output_file}")
