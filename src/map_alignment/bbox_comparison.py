@@ -22,6 +22,7 @@ class BBoxComparison:
         bbox_depth_buffer=0.05,
         area_threshold=1e-2, # 1cm^2 diff ~ 10cm difference in bbox lengths
         k_closest=5,
+        visualise=False,
     ):
         self.base_bboxes = base_bboxes
         self.comparison_bboxes = comparison_bboxes
@@ -30,8 +31,10 @@ class BBoxComparison:
         self.bbox_depth_buffer = bbox_depth_buffer
         self.area_threshold = area_threshold
         self.k_closest = k_closest
+        self.visualise = visualise
         self.matches = {}
         self.color_map = {}
+        self.matched_base_indices = set()
 
         # Instance util classes
         self.visualiser = Visualiser()
@@ -82,12 +85,20 @@ class BBoxComparison:
                     ):
                         best_match = (indices[i], tuple(base_centroids[indices[i]]))
                         self.matches[(frame_id, tuple(comp_centroid))] = best_match
+                        self.matched_base_indices.add(indices[i])
                         break
 
         self.logger.info(f"Matches: {self.matches}")
 
+        # Identify unmatched base bboxes
+        unmatched_base_bboxes = [
+            (i, base_bbox_list[i]) for i in range(len(base_bbox_list)) if i not in self.matched_base_indices
+        ]
+        self.logger.info(f"Unmatched base bboxes: {unmatched_base_bboxes}")
+
         # Visualise the bboxes and meshes
-        self._visualise_bboxes()
+        if self.visualise:
+            self._visualise_bboxes()
 
     def _visualise_bboxes(self):
         self.logger.info("Visualizing bounding boxes and meshes")
