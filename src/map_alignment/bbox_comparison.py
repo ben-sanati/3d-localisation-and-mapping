@@ -83,8 +83,13 @@ class BBoxComparison:
                         and abs(self._calculate_area(comp_bbox) - self._calculate_area(base_bbox))
                         < self.area_threshold
                     ):
-                        best_match = (indices[i], tuple(base_centroids[indices[i]]))
-                        self.matches[(frame_id, tuple(comp_centroid))] = best_match
+                        best_match = (
+                            indices[i],
+                            (base_bbox[-1], tuple(base_centroids[indices[i]]))  # Use tuple for hashable key
+                        )
+                        self.matches[
+                            (frame_id, (comp_bbox[-1], tuple(comp_centroid)))  # Use tuple for hashable key
+                        ] = best_match
                         self.matched_base_indices.add(indices[i])
                         break
 
@@ -92,7 +97,11 @@ class BBoxComparison:
 
         # Identify unmatched base bboxes
         unmatched_base_bboxes = [
-            (i, base_bbox_list[i]) for i in range(len(base_bbox_list)) if i not in self.matched_base_indices
+            {
+                'base_classification': base_bbox_list[i][-1],
+                'base_coordinates': self._calculate_centroid(base_bbox_list[i])
+            }
+            for i in range(len(base_bbox_list)) if i not in self.matched_base_indices
         ]
         self.logger.info(f"Unmatched base bboxes: {unmatched_base_bboxes}")
 
@@ -129,7 +138,14 @@ class BBoxComparison:
                 vis.add_geometry(bbox_line_set)
 
         # Draw lines connecting matched bboxes and add spheres at centroids
-        for (comp_frame_id, comp_centroid), (base_index, base_centroid) in self.matches.items():
+        for (comp_frame_id, comp_data), (base_index, base_data) in self.matches.items():
+            comp_classification, comp_centroid = comp_data
+            base_classification, base_centroid = base_data
+            
+            # Ensure the centroids are numpy arrays
+            comp_centroid = np.array(comp_centroid)
+            base_centroid = np.array(base_centroid)
+            
             # Line connecting centroids
             line_set = o3d.geometry.LineSet(
                 points=o3d.utility.Vector3dVector([comp_centroid, base_centroid]),
