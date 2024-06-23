@@ -27,6 +27,20 @@ class VisualiseAlignment:
         self.logger = logging.getLogger(__name__)
         self.logger.info("VisualiseAlignment class initialized")
 
+        # Calculate camera position #
+        bbox = self.base_pcd.get_axis_aligned_bounding_box()
+        center = bbox.get_center()
+
+        # Determine the size of the bounding box
+        extent = bbox.get_extent()
+        max_extent = np.max(extent)
+
+        # Position the camera in the top-right direction relative to the center
+        camera_distance = max_extent * 1  # Adjust the distance as needed
+        camera_position = center + np.array([-camera_distance, camera_distance, camera_distance])
+        self.cam_front = (center - camera_position) / np.linalg.norm(center - camera_position)
+        self.cam_look_at = center
+
     def _apply_incremental_transformation(self, transformation, steps=20):
         """
         Apply the given transformation incrementally to the point cloud for smooth transition visualization.
@@ -64,9 +78,6 @@ class VisualiseAlignment:
         # Compute the incremental rotation
         incremental_rotation = expm(rotation_log / steps)
 
-        self.logger.info(f"Target: {rotation}")
-        self.logger.info(f"Incremental Rotation Matrix: {incremental_rotation}")
-
         for step in range(steps):
             self.comparison_pcd.rotate(incremental_rotation, center)
             self.logger.info(f"Applying incremental rotation step {step + 1}/{steps}")
@@ -96,13 +107,13 @@ class VisualiseAlignment:
         vis.create_window(visible=False)
         vis.add_geometry(self.base_pcd)
         vis.add_geometry(point_cloud)
-        
-        # Set the camera parameters to view at an angle
+
+        # Position the camera in the top-right direction relative to the center
         ctr = vis.get_view_control()
-        ctr.set_front([0.0, 0.0, -1.0])  # Set the front vector (camera direction)
-        ctr.set_lookat([0.0, 0.0, 0.0])  # Set the look-at vector (center of rotation)
-        ctr.set_up([0.0, -1.0, 0.0])     # Set the up vector (camera's up direction)
-        ctr.set_zoom(0.8)                # Set the zoom level
+        ctr.set_front(self.cam_front)
+        ctr.set_lookat(self.cam_look_at)
+        ctr.set_up([0.0, 0.0, 1.0])  # Assuming z is up in your coordinate system
+        ctr.set_zoom(0.5)
 
         vis.poll_events()
         vis.update_renderer()
