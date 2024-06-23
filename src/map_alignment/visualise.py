@@ -31,14 +31,45 @@ class VisualiseAlignment:
         """
         Apply the given transformation incrementally to the point cloud for smooth transition visualization.
         Args:
-            transformation (numpy.ndarray): The 4x4 transformation matrix.
-            steps (int): Number of incremental steps.
+            transformation (numpy.ndarray or tuple): The 4x4 transformation matrix or (rotation, center) tuple.
+            steps (int): Number of incremental steps for each transformation.
         """
-        incremental_transformation = self._compute_incremental_transformation(transformation, steps)
+        if isinstance(transformation, tuple):
+            rotation, center = transformation
+            self._apply_incremental_rotation(rotation, center, steps)
+        else:
+            incremental_transformation = self._compute_incremental_transformation(transformation, steps)
+            self._apply_incremental_translation(incremental_transformation, steps)
 
+    def _apply_incremental_translation(self, incremental_transformation, steps):
+        """
+        Apply incremental transformation to the point cloud position.
+        """
         for step in range(steps):
             self.logger.info(f"Applying incremental transformation step {step + 1}/{steps}")
             self.comparison_pcd.transform(incremental_transformation)
+            self._capture_frame()
+
+    def _apply_incremental_rotation(self, rotation, center, steps):
+        """
+        Apply incremental rotation to the point cloud.
+        Args:
+            rotation (numpy.ndarray): The rotation matrix.
+            center (numpy.ndarray): The rotation center.
+            steps (int): Number of incremental steps for rotation.
+        """
+        # Compute the logarithm of the rotation matrix
+        rotation_log = logm(rotation)
+        
+        # Compute the incremental rotation
+        incremental_rotation = expm(rotation_log / steps)
+
+        self.logger.info(f"Target: {rotation}")
+        self.logger.info(f"Incremental Rotation Matrix: {incremental_rotation}")
+
+        for step in range(steps):
+            self.comparison_pcd.rotate(incremental_rotation, center)
+            self.logger.info(f"Applying incremental rotation step {step + 1}/{steps}")
             self._capture_frame()
 
     def _compute_incremental_transformation(self, transformation, steps):
@@ -65,6 +96,14 @@ class VisualiseAlignment:
         vis.create_window(visible=False)
         vis.add_geometry(self.base_pcd)
         vis.add_geometry(point_cloud)
+        
+        # Set the camera parameters to view at an angle
+        ctr = vis.get_view_control()
+        ctr.set_front([0.0, 0.0, -1.0])  # Set the front vector (camera direction)
+        ctr.set_lookat([0.0, 0.0, 0.0])  # Set the look-at vector (center of rotation)
+        ctr.set_up([0.0, -1.0, 0.0])     # Set the up vector (camera's up direction)
+        ctr.set_zoom(0.8)                # Set the zoom level
+
         vis.poll_events()
         vis.update_renderer()
         time.sleep(0.1)  # Small delay to ensure the frame is captured correctly
@@ -103,12 +142,7 @@ class VisualiseAlignment:
         # Apply all transformations step by step
         for i, transformation in enumerate(transformations):
             self.logger.info(f"Processing transformation {i + 1}/{len(transformations)}")
-            if isinstance(transformation, tuple):  # Handle (rotation, center) tuple
-                rotation, center = transformation
-                self.comparison_pcd.rotate(rotation, center)
-                self._capture_frame()
-            else:
-                self._apply_incremental_transformation(transformation)
+            self._apply_incremental_transformation(transformation, steps=20)
 
         # Save frames as a video
         self.logger.info(f"Saving video to {output_video}")
