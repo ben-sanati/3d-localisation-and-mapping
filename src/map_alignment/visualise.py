@@ -19,6 +19,21 @@ class VisualiseAlignment:
     def __init__(self, base_map_filepath, comparison_map_filepath):
         self.base_pcd = o3d.io.read_point_cloud(base_map_filepath)
         self.comparison_pcd = o3d.io.read_point_cloud(comparison_map_filepath)
+        
+        # Convert point clouds to meshes
+        o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
+        self.base_mesh, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+            self.base_pcd,
+            depth=11,
+            scale=1.0,
+        )
+        self.comparison_mesh, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+            self.comparison_pcd,
+            depth=11,
+            scale=1.0,
+        )
+        o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Error)
+
         self.frames = []
         self.total_frames = 0
 
@@ -31,15 +46,32 @@ class VisualiseAlignment:
         bbox = self.base_pcd.get_axis_aligned_bounding_box()
         center = bbox.get_center()
 
-        # Determine the size of the bounding box
-        extent = bbox.get_extent()
-        max_extent = np.max(extent)
+        # Get the coordinates of the corners of the bounding box
+        bbox_corners = bbox.get_box_points()
 
-        # Position the camera in the top-right direction relative to the center
-        camera_distance = max_extent * 1  # Adjust the distance as needed
-        camera_position = center + np.array([-camera_distance, camera_distance, camera_distance])
-        self.cam_front = (center - camera_position) / np.linalg.norm(center - camera_position)
+        # Select a reference point for the camera position
+        reference_point = np.max(bbox_corners, axis=0) / 20
+
+        # Adjust the camera to be a little higher than the upper corner
+        x_offset = -8  # x meter offset
+        y_offset = 2  # y meter offset
+        z_offset = -5  # z meter offset
+        camera_position = reference_point + np.array([x_offset, y_offset, z_offset])
+
+        # Set camera to look at the center from the upper corner
         self.cam_look_at = center
+        self.cam_front = (self.cam_look_at - camera_position) / np.linalg.norm(self.cam_look_at - camera_position)
+        self.cam_up = [0.0, 0.0, 1.0]  # Assuming z is up in your coordinate system
+
+        # Set camera parameters
+        self.vis = o3d.visualization.Visualizer()
+        self.vis.create_window(visible=False)
+        self.vis.add_geometry(self.base_mesh)
+        self.ctr = self.vis.get_view_control()
+        self.ctr.set_front(self.cam_front)
+        self.ctr.set_lookat(self.cam_look_at)
+        self.ctr.set_up(self.cam_up)
+        self.ctr.set_zoom(0.1)
 
     def _apply_incremental_transformation(self, transformation, steps=20):
         """
@@ -61,7 +93,7 @@ class VisualiseAlignment:
         """
         for step in range(steps):
             self.logger.info(f"Applying incremental transformation step {step + 1}/{steps}")
-            self.comparison_pcd.transform(incremental_transformation)
+            self.comparison_mesh.transform(incremental_transformation)
             self._capture_frame()
 
     def _apply_incremental_rotation(self, rotation, center, steps):
@@ -74,12 +106,12 @@ class VisualiseAlignment:
         """
         # Compute the logarithm of the rotation matrix
         rotation_log = logm(rotation)
-        
+
         # Compute the incremental rotation
         incremental_rotation = expm(rotation_log / steps)
 
         for step in range(steps):
-            self.comparison_pcd.rotate(incremental_rotation, center)
+            self.comparison_mesh.rotate(incremental_rotation, center)
             self.logger.info(f"Applying incremental rotation step {step + 1}/{steps}")
             self._capture_frame()
 
@@ -94,34 +126,32 @@ class VisualiseAlignment:
         self.logger.info(f"Capturing frame {len(self.frames) + 1}/{self.total_frames}")
 
         # Render the point cloud to image buffer
-        img = self._render_point_cloud_to_image(self.comparison_pcd)
+        img = self._render_point_cloud_to_image()
 
         # Append to frames list
         self.frames.append(img)
 
-    def _render_point_cloud_to_image(self, point_cloud):
+    def _render_point_cloud_to_image(self):
         """
-        Render the given point cloud to an image buffer for frame capture.
+        Render the current state of the point cloud to an image buffer for frame capture.
         """
-        vis = o3d.visualization.Visualizer()
-        vis.create_window(visible=False)
-        vis.add_geometry(self.base_pcd)
-        vis.add_geometry(point_cloud)
+        # Clear the visualizer
+        self.vis.clear_geometries()
+        self.vis.add_geometry(self.base_mesh)
+        self.vis.add_geometry(self.comparison_mesh)
 
-        # Position the camera in the top-right direction relative to the center
-        ctr = vis.get_view_control()
-        ctr.set_front(self.cam_front)
-        ctr.set_lookat(self.cam_look_at)
-        ctr.set_up([0.0, 0.0, 1.0])  # Assuming z is up in your coordinate system
-        ctr.set_zoom(0.5)
+        # Reuse the view control parameters
+        self.ctr.set_front(self.cam_front)
+        self.ctr.set_lookat(self.cam_look_at)
+        self.ctr.set_up([0.0, 0.0, 1.0])
+        self.ctr.set_zoom(0.5)
 
-        vis.poll_events()
-        vis.update_renderer()
+        self.vis.poll_events()
+        self.vis.update_renderer()
         time.sleep(0.1)  # Small delay to ensure the frame is captured correctly
 
         # Capture screen as float buffer and convert to numpy array
-        img = vis.capture_screen_float_buffer(True)
-        vis.destroy_window()
+        img = self.vis.capture_screen_float_buffer(True)
 
         # Convert float image to uint8
         img_array = np.asarray(img) * 255
