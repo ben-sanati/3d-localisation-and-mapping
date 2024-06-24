@@ -221,6 +221,6 @@ if __name__ == "__main__":
     comparison_map_filepath = comparison_variables["comparison_map_filepath"]
 
     # Visualise alignment
-    output_video = "alignment_animation.mp4"
+    output_video = f"src/common/data/{data_folder}/alignment_visualisation.mp4"
     visualiser = VisualiseAlignment(base_map_filepath, comparison_map_filepath)
     visualiser.create_video(transformations, output_video)
