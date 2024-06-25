@@ -22,6 +22,12 @@
   </tr>
 </table>
 
+<p align="center">
+  <img src="readme_img/alignment_visualisation.gif" alt="Demo Video" style="width: 60%"/>
+  <br>
+    <em>Alignment of 2 separate 3D point clouds using our algorithm.</em>
+</p>
+
 ## Usage
 
 ### Data Folder Setup
