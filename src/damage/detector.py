@@ -1,5 +1,6 @@
 import os
 import sys
+import pickle
 import os.path
 import argparse
 
@@ -7,18 +8,7 @@ import torch
 import torch.nn as nn
 from PIL import Image
 from tqdm import tqdm
-from transformers import BeitForImageClassification, BeitFeatureExtractor
-
-sys.path.insert(0, r"src/detector")
-sys.path.insert(0, r"../detector/yolov7")
-sys.path.insert(0, r"src/detector/yolov7")
-
-from models.experimental import attempt_load  # noqa
-from utils.datasets import LoadStreams, LoadImages  # noqa
-from utils.general import check_img_size, check_requirements, check_imshow, non_max_suppression  # noqa
-from utils.general import apply_classifier, scale_coords, xyxy2xywh  # noqa
-from utils.general import strip_optimizer, set_logging, increment_path  # noqa
-from utils.torch_utils import select_device, load_classifier, time_synchronized, TracedModel  # noqa
+from transformers import BeitForImageClassification, AutoImageProcessor
 
 
 class DamageDetector(nn.Module):
@@ -28,7 +18,6 @@ class DamageDetector(nn.Module):
 
     @authors: Benjamin Sanati
     """
-
     def __init__(self, model_type):
         """
         @brief: Initializes the damage detector for processing. Sets up the classifier once, reducing the total processing time compared to
@@ -43,9 +32,11 @@ class DamageDetector(nn.Module):
             repo_name = r"src/damage/finetuned_models/BEiT-fine-finetuned"
         elif model_type == "simple":
             repo_name = r"src/damage/finetuned_models/BEiT-coarse-finetuned"
+        else:
+            raise ValueError("Invalid model type. Choose either 'detailed' or 'simple'.")
 
         self.device = torch.device("cuda")
-        self.feature_extractor = BeitFeatureExtractor.from_pretrained(repo_name)
+        self.image_processor = AutoImageProcessor.from_pretrained(repo_name)
         self.model = BeitForImageClassification.from_pretrained(repo_name).to(self.device)
 
         sys.stdout = sys.__stdout__  # Enable printing
@@ -61,34 +52,36 @@ class DamageDetector(nn.Module):
 
         @authors: Benjamin Sanati
         """
-
+        # TODO: Accomodate batching for more efficient inference
         labels = []
-        loop = tqdm(enumerate(os.listdir(data_src)), total=len(os.listdir(data_src)))
+        image_files = os.listdir(data_src)
+        total_images = len(image_files)
+
+        loop = tqdm(enumerate(image_files), total=total_images)
         for index, (filename) in loop:
             image_path = os.path.join(data_src, filename)
-            image = Image.open(image_path)
+            try:
+                image = Image.open(image_path).convert("RGB")
 
-            # Prepare image for the model
-            encoding = self.feature_extractor(image.convert("RGB"), return_tensors="pt")
+                # Prepare image for the model
+                encoding = self.image_processor(image, return_tensors="pt")
 
-            # ############## #
-            # GET PREDICTION #
-            # ############## #
+                # Forward pass
+                with torch.no_grad():
+                    encoding["pixel_values"] = encoding["pixel_values"].to(self.device)
+                    outputs = self.model(**encoding)
+                    logits = outputs.logits
 
-            # Forward pass
-            with torch.no_grad():
-                encoding["pixel_values"] = encoding["pixel_values"].to(self.device)
-                outputs = self.model(**encoding)
-                logits = outputs.logits
-
-            # Prediction
-            predicted_class_idx = logits.argmax(-1).item()
-            predicted_class = self.model.config.id2label[predicted_class_idx]
-            predicted_class = predicted_class.lower()
-            labels.append(predicted_class)
+                # Prediction
+                predicted_class_idx = logits.argmax(-1).item()
+                predicted_class = self.model.config.id2label[predicted_class_idx].lower()
+                labels.append(predicted_class)
+            except Exception as e:
+                print(f"Error processing {image_path}: {e}", file=sys.stderr)
+                labels.append("error")
 
             # Update progress bar
-            loop.set_description(f"\t\tSign [{index + 1}/{len(os.listdir(data_src))}]")
+            loop.set_description(f"Sign [{index + 1}/{len(os.listdir(data_src))}]")
 
         return labels
 

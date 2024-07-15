@@ -300,9 +300,9 @@ if __name__ == "__main__":
     global_bboxes_data = pose_processing.get_global_coordinates()
 
     # Save to pickle file
+    data_to_save = variables
     data_to_save = {
         "global_bboxes_data": global_bboxes_data,
-        "pose_df": pose_df,
     }
 
     with open(cfg.pickle_path, "wb") as write_file:

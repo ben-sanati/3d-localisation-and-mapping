@@ -227,3 +227,5 @@ if __name__ == "__main__":
     # TODO: integrate bbox comparison methods
     # TODO: automate csv results production
     # TODO: define pipeline for gold_std vs. maintenance runs
+    # TODO: add batch processing (damage)
+    # TODO: improve alignment using splitting procedure
