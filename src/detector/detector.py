@@ -10,6 +10,7 @@ from numpy import random
 from tqdm import tqdm
 
 sys.path.insert(0, r"src/detector")
+sys.path.insert(0, r"../detector/yolov7")
 sys.path.insert(0, r"src/detector/yolov7")
 
 from yolov7.models.experimental import attempt_load  # noqa

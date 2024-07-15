@@ -8,6 +8,7 @@ src/*.png
 *.txt
 *.pkl
 src/common/data
+src/damage/finetuned_models
 
 # Models
 src/detector/yolov7
