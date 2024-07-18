@@ -224,7 +224,7 @@ if __name__ == "__main__":
         cfg.overlay_pose,
     )
 
-    # TODO: integrate bbox comparison methods
+    # TODO: integrate bbox comparison methods into pipeline
     # TODO: automate csv results production
     # TODO: define pipeline for gold_std vs. maintenance runs
     # TODO: add batch processing (damage)

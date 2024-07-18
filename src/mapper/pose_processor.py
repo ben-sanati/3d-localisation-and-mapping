@@ -301,9 +301,7 @@ if __name__ == "__main__":
 
     # Save to pickle file
     data_to_save = variables
-    data_to_save = {
-        "global_bboxes_data": global_bboxes_data,
-    }
+    data_to_save["global_bboxes_data"] = global_bboxes_data
 
     with open(cfg.pickle_path, "wb") as write_file:
         pickle.dump(data_to_save, write_file)
