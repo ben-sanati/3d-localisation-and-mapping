@@ -84,22 +84,3 @@ class DamageDetector(nn.Module):
             loop.set_description(f"Sign [{index + 1}/{len(os.listdir(data_src))}]")
 
         return labels
-
-
-if __name__ == "__main__":
-    # Setup argparse config
-    parser = argparse.ArgumentParser(description="Processing Configuration")
-    parser.add_argument(
-        "--data", type=str, help="Data Folder Name.", default="gold_std"
-    )
-    args = parser.parse_args()
-    data_folder = args.data
-
-    # Load the configuration
-    os.chdir("../..")
-
-    model = DamageDetector(model_type="detailed")
-
-    # run inference
-    model(f"src/common/data/{data_folder}/processed_img")
-    print("Inference Complete!", flush=True)

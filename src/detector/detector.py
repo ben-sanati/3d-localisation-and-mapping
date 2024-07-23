@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+import pickle
 
 import cv2
 import numpy as np
@@ -8,11 +9,14 @@ import torch
 import torch.nn as nn
 from numpy import random
 from tqdm import tqdm
+from skimage import transform
 
+sys.path.insert(0, r"../..")
 sys.path.insert(0, r"src/detector")
 sys.path.insert(0, r"../detector/yolov7")
 sys.path.insert(0, r"src/detector/yolov7")
 
+from src.utils.config import ConfigLoader  # noqa
 from yolov7.models.experimental import attempt_load  # noqa
 from yolov7.utils.general import non_max_suppression  # noqa
 
@@ -120,15 +124,16 @@ class ObjectDetector(nn.Module):
         self.model.eval()
         loop = tqdm(enumerate(dataloader), total=len(dataloader))
         with torch.no_grad():
-            for idx, (data, _, _) in loop:
+            for idx, (_data, _, _) in loop:
                 # Make prediction and save processed images
-                data, preds = self._inference(data)
+                data, preds = self._inference(_data)
                 self._processed_image(data, preds)
 
                 # Add to dictionary
                 preds = [tensor.cpu().tolist() for tensor in preds]
-                for img_idx, (pred) in enumerate(preds):
+                for img_idx, (pred, img) in enumerate(zip(preds, _data)):
                     predictions[(idx * self.batch_size) + img_idx] = pred
+                    self._parse_damage(img, pred)
 
                 # Update progress bar
                 loop.set_description(f"Image [{idx + 1}/{len(dataloader)}]")
@@ -220,6 +225,54 @@ class ObjectDetector(nn.Module):
         bbox[3] *= y_scale
         return bbox
 
+    def _parse_damage(self, img, pred):
+        # Parse image
+        img = img.squeeze().cpu()
+        img = img.permute(1, 2, 0).numpy()
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        for bbox_idx, (p) in enumerate(pred):
+            bbox_coord = p[:4]
+            sign_img = self._perform_homography(bbox_coord, img)
+
+    def _perform_homography(self, coord, frame_image):
+        x1, y1 = coord[0], coord[1]
+        x2, y2 = coord[2], coord[3]
+
+        # Source points: corners of the box
+        src = np.array(
+            [
+                [x1, y1],
+                [x1, y2],
+                [x2, y2],
+                [x2, y1]
+            ]
+        ).reshape((4, 2))
+
+        # Destination points: corners of the image
+        dst = np.array(
+            [
+                [0, 0],
+                [0, frame_image.shape[1]],
+                [frame_image.shape[0], frame_image.shape[1]],
+                [frame_image.shape[0], 0],
+            ]
+        ).reshape((4, 2))
+
+        # Compute the homography matrix
+        tform = transform.estimate_transform('projective', src, dst)
+
+        # Apply the homography transformation
+        tf_img = transform.warp(frame_image, tform.inverse)
+
+        # View image
+        if self.view_img:
+            cv2.imshow("Sign", tf_img)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+
+        return tf_img
+
 
 if __name__ == "__main__":
     # Setup argparse config
@@ -232,6 +285,12 @@ if __name__ == "__main__":
 
     # Load the configuration
     os.chdir("../..")
+    config_path = r"src/common/configs/variables.cfg"
+    cfg = ConfigLoader(config_path, data_folder)
+
+    # Read the variables file
+    with open(cfg.pickle_path, "rb") as file:
+        variables = pickle.load(file)
 
     model = ObjectDetector(
         conf_thresh=0.5,
@@ -244,5 +303,5 @@ if __name__ == "__main__":
     )
 
     # run inference
-    model()
+    model(variables["dataloader"])
     print("Inference Complete!", flush=True)
