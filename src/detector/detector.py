@@ -39,6 +39,7 @@ class ObjectDetector(nn.Module):
         view_img,
         save_img,
         weights=r"src/common/finetuned_models/best.pt",
+        temp_damage_path=r"src/common/temp_damage",
     ):
         """
         @brief: Initializes the object detector for processing. Sets up object detector once, reducing the total
@@ -76,6 +77,7 @@ class ObjectDetector(nn.Module):
         self.img_size = img_size
         self.batch_size = batch_size
         self.save_img = save_img
+        self.temp_damage_path = temp_damage_path
         self.idx = 0
 
         # Preprocess images
@@ -128,15 +130,18 @@ class ObjectDetector(nn.Module):
                 # Make prediction and save processed images
                 data, preds = self._inference(_data)
                 self._processed_image(data, preds)
-
-                # Add to dictionary
                 preds = [tensor.cpu().tolist() for tensor in preds]
                 for img_idx, (pred, img) in enumerate(zip(preds, _data)):
-                    predictions[(idx * self.batch_size) + img_idx] = pred
+                    # Get damage classification
                     self._parse_damage(img, pred)
+                    break
+
+                    # Add to dictionary
+                    predictions[(idx * self.batch_size) + img_idx] = pred
 
                 # Update progress bar
                 loop.set_description(f"Image [{idx + 1}/{len(dataloader)}]")
+                break
 
         return predictions
 
@@ -233,9 +238,9 @@ class ObjectDetector(nn.Module):
 
         for bbox_idx, (p) in enumerate(pred):
             bbox_coord = p[:4]
-            sign_img = self._perform_homography(bbox_coord, img)
+            self._perform_homography(bbox_coord, img, bbox_idx)
 
-    def _perform_homography(self, coord, frame_image):
+    def _perform_homography(self, coord, frame_image, bbox_idx):
         x1, y1 = coord[0], coord[1]
         x2, y2 = coord[2], coord[3]
 
@@ -271,7 +276,9 @@ class ObjectDetector(nn.Module):
             cv2.waitKey(0)
             cv2.destroyAllWindows()
 
-        return tf_img
+        print(tf_img.max(), type(tf_img), tf_img.shape)
+
+        cv2.imwrite(f"{self.temp_damage_path}/{bbox_idx}.png", (tf_img * 255).astype(np.uint8))
 
 
 if __name__ == "__main__":
