@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+import glob
 import pickle
 
 import cv2
@@ -134,7 +135,12 @@ class ObjectDetector(nn.Module):
                 for img_idx, (pred, img) in enumerate(zip(preds, _data)):
                     # Get damage classification
                     self._parse_damage(img, pred)
+
+                    # TODO: integrate damage classifier
                     break
+
+                    # Delete images in temp damage folder
+                    self._delete_all_files_in_directory()
 
                     # Add to dictionary
                     predictions[(idx * self.batch_size) + img_idx] = pred
@@ -276,9 +282,12 @@ class ObjectDetector(nn.Module):
             cv2.waitKey(0)
             cv2.destroyAllWindows()
 
-        print(tf_img.max(), type(tf_img), tf_img.shape)
-
         cv2.imwrite(f"{self.temp_damage_path}/{bbox_idx}.png", (tf_img * 255).astype(np.uint8))
+
+    def _delete_all_files_in_directory(self):
+        files = glob.glob(os.path.join(self.temp_damage_path, '*'))
+        for f in files:
+            os.remove(f)
 
 
 if __name__ == "__main__":
