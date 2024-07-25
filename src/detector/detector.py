@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 import torch
 import torch.nn as nn
+from PIL import Image
 from numpy import random
 from tqdm import tqdm
 from skimage import transform
@@ -18,6 +19,7 @@ sys.path.insert(0, r"../detector/yolov7")
 sys.path.insert(0, r"src/detector/yolov7")
 
 from src.utils.config import ConfigLoader  # noqa
+from src.damage.classifier import DamageDetector  # noqa
 from yolov7.models.experimental import attempt_load  # noqa
 from yolov7.utils.general import non_max_suppression  # noqa
 
@@ -84,7 +86,19 @@ class ObjectDetector(nn.Module):
         # Preprocess images
         self._initialize_model()
         self._initialize_auxiliary_data()
-        print("\tModel Configured.", flush=True)
+        self.damage_classifier = DamageDetector()
+        print("\tModels Configured.", flush=True)
+
+        # Get names
+        self.names = [
+            'Exit', 'Exit Straight', 'Fire Extinguisher', 'Fire Extinguisher Straight', 'Seat Numbers',
+            'Wheelchair Seat Numbers', 'Seat Utilities', 'Cycle Reservation', 'Wi-Fi', 'Toilet',
+            'Wheelchair Area', 'Wheelchair Assistants Area', 'Priority Seat', 'Priority Seating Area',
+            'Overhead Racks Warning', 'Mind The Gap', 'CCTV Warning', 'Call Cancellation', 'Telephone S.O.S',
+            'Push To Stop Train', 'Emergency Door Release', 'Emergency Information', 'Litter Bin',
+            'Smoke Alarm', 'Toilet Door Latch', 'Hand Washing', 'Toilet Tissue', 'Toilet Warning', 'Handrail',
+            'Caution Magnet', 'Baby Changing Bed', 'C3', 'AC', 'Electricity Hazard', 'Ladder'
+        ]
 
     def _initialize_model(self):
         """
@@ -122,6 +136,13 @@ class ObjectDetector(nn.Module):
 
         Args:
             data_loader: PyTorch DataLoader containing batches of image tensors.
+
+        The pred list consists of the following data: 
+            [x1, y1, x2, y2, damage_classification, bbox_confidence, sign_classification]
+
+        Returns:
+            predictions (dict[list[list]]): This is a dictionary, where the key is the image index, and the value 
+            is a list of pred lists for each bbox identified in the frame.
         """
         predictions = {}
         self.model.eval()
@@ -136,18 +157,21 @@ class ObjectDetector(nn.Module):
                     # Get damage classification
                     self._parse_damage(img, pred)
 
-                    # TODO: integrate damage classifier
-                    break
+                    # Integrate damage classifier
+                    damage_classification = self.damage_classifier(self.temp_damage_path)
+                    # print(f"Damage Classification: {self.damage_classifier.get_class_label(damage_classification)}\n")
 
                     # Delete images in temp damage folder
                     self._delete_all_files_in_directory()
 
                     # Add to dictionary
+                    for bbox, classification in zip(pred, damage_classification):
+                        bbox.insert(-2, classification)
+
                     predictions[(idx * self.batch_size) + img_idx] = pred
 
                 # Update progress bar
                 loop.set_description(f"Image [{idx + 1}/{len(dataloader)}]")
-                break
 
         return predictions
 
@@ -313,7 +337,7 @@ if __name__ == "__main__":
         iou_thresh=0.65,
         img_size=1280,
         batch_size=2,
-        view_img=True,
+        view_img=False,
         save_img=f"src/common/data/{data_folder}/processed_img",
         weights=r"src/common/finetuned_models/best.pt",
     )

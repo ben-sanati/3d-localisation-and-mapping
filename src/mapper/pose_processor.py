@@ -115,7 +115,12 @@ class ProcessPose:
         return global_bboxes
 
     def _3d_processing(
-        self, pose_data, rgb_image_cv, depth_image_cv, bboxes, camera_intrinsics
+        self,
+        pose_data,
+        rgb_image_cv,
+        depth_image_cv,
+        bboxes,
+        camera_intrinsics,
     ):
         # Get camera intrinsics
         depth_to_rgb_scale = camera_intrinsics["image_width"] / self.depth_width
@@ -193,7 +198,7 @@ class ProcessPose:
                 global_corners, self.bbox_depth_buffer
             )
 
-            frame_global_bboxes.append(global_corners + bbox[-2:])
+            frame_global_bboxes.append(global_corners + bbox[-3:])
 
             if self.verbose:
                 print(f"\tOriginal 2D Corners: {corners}")

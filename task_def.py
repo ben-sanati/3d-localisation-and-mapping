@@ -179,6 +179,7 @@ if __name__ == "__main__":
         cfg.processing_path,
     )
     data_to_save["predictions"] = predictions
+    print(f"Predictions: {predictions}")
     del dataloader
     gc.collect()
 
@@ -199,6 +200,7 @@ if __name__ == "__main__":
         cfg.depth_height,
         cfg.display_3d,
     )
+    print(f"Optimised BBoxes Data: {optimised_bboxes}")
 
     # Save as pickle file and load later to use in another script
     data_to_save["global_bboxes_data"] = global_bboxes_data

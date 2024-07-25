@@ -171,7 +171,7 @@ class Mapping:
         if self.view_unprocessed_bboxes:
             for frame_index, bbox_list in self.global_bboxes_data.items():
                 for bbox in bbox_list:
-                    bbox = bbox[:-2]
+                    bbox = bbox[:4]
 
                     # Turn 2D corners into 3D corners (with a buffer)
                     bbox_3d = self.transforms.create_3d_bounding_box(
@@ -183,7 +183,7 @@ class Mapping:
         # Overlay optimised 3D bboxes onto point cloud
         for frame_index, bbox_list in self.optimised_bboxes.items():
             for bbox in bbox_list:
-                bbox = bbox[:-2]
+                bbox = bbox[:4]
 
                 # Turn 2D corners into 3D corners (with a buffer)
                 bbox_3d = self.transforms.create_3d_bounding_box(

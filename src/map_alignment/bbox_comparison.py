@@ -19,7 +19,6 @@ class BBoxComparison:
         base_bboxes,
         comparison_bboxes,
         base_mesh,
-        comparison_mesh,
         bbox_depth_buffer=0.05,
         area_threshold=1e-2, # 1cm^2 diff ~ 10cm difference in bbox lengths
         k_closest=5,
@@ -29,7 +28,6 @@ class BBoxComparison:
         self.base_bboxes = base_bboxes
         self.comparison_bboxes = comparison_bboxes
         self.base_mesh = base_mesh
-        self.comparison_mesh = comparison_mesh
         self.bbox_depth_buffer = bbox_depth_buffer
         self.area_threshold = area_threshold
         self.k_closest = k_closest
@@ -89,21 +87,21 @@ class BBoxComparison:
                     ):
                         best_match = (
                             indices[i],
-                            (base_bbox[-1], tuple(base_centroids[indices[i]]))  # Use tuple for hashable key
+                            (base_bbox[-1], base_bbox[-3], tuple(base_centroids[indices[i]]))  # Use tuple for hashable key
                         )
                         self.matches[
-                            (frame_id, (comp_bbox[-1], tuple(comp_centroid)))  # Use tuple for hashable key
+                            (frame_id, (comp_bbox[-1], 0, tuple(comp_centroid)))  # Use tuple for hashable key
                         ] = best_match
                         self.matched_base_indices.add(indices[i])
-                        break
 
         self.logger.info(f"Matches: {self.matches}")
 
         # Identify unmatched base bboxes
         unmatched_base_bboxes = [
             {
-                'base_classification': base_bbox_list[i][-1],
-                'base_coordinates': self._calculate_centroid(base_bbox_list[i])
+                "base_classification": base_bbox_list[i][-1],
+                "base_damage": base_bbox_list[i][-3],
+                "base_coordinates": self._calculate_centroid(base_bbox_list[i])
             }
             for i in range(len(base_bbox_list)) if i not in self.matched_base_indices
         ]
@@ -124,7 +122,6 @@ class BBoxComparison:
         vis.create_window()
 
         vis.add_geometry(self.base_mesh)
-        # vis.add_geometry(self.comparison_mesh)
 
         # Add base bboxes
         for frame_id, bbox_list in self.base_bboxes.items():
@@ -148,13 +145,13 @@ class BBoxComparison:
 
         # Draw lines connecting matched bboxes and add spheres at centroids
         for (comp_frame_id, comp_data), (base_index, base_data) in self.matches.items():
-            comp_classification, comp_centroid = comp_data
-            base_classification, base_centroid = base_data
-            
+            comp_classification, comp_damage, comp_centroid = comp_data
+            base_classification, base_damage, base_centroid = base_data
+
             # Ensure the centroids are numpy arrays
             comp_centroid = np.array(comp_centroid)
             base_centroid = np.array(base_centroid)
-            
+
             # Line connecting centroids
             line_set = o3d.geometry.LineSet(
                 points=o3d.utility.Vector3dVector([comp_centroid, base_centroid]),
@@ -190,29 +187,49 @@ class BBoxComparison:
         """
         base_bboxes_data = [
             {
-                'classification': bbox[-1],
-                'coordinates': tuple(self._calculate_centroid(bbox))
+                "classification": bbox[-1],
+                "damage": bbox[-3],
+                "coordinates": tuple(self._calculate_centroid(bbox)),
             }
             for bbox_list in self.base_bboxes.values() for bbox in bbox_list
         ]
-        
+
         matched_bboxes_data = [
             {
-                'classification': self.matches[(comp_frame_id, comp_data)][1][0],
-                'coordinates': tuple(self.matches[(comp_frame_id, comp_data)][1][1])
+                "classification": self.matches[(comp_frame_id, comp_data)][1][0],
+                "damage": self.matches[(comp_frame_id, comp_data)][1][1],
+                "coordinates": tuple(self.matches[(comp_frame_id, comp_data)][1][2]),
             }
             if (comp_frame_id, comp_data) in self.matches else None
             for comp_frame_id, comp_bbox_list in self.comparison_bboxes.items()
-            for comp_data in [(bbox[-1], tuple(self._calculate_centroid(bbox))) for bbox in comp_bbox_list]
+            for comp_data in [(bbox[-1], bbox[-3], tuple(self._calculate_centroid(bbox))) for bbox in comp_bbox_list]
         ]
 
-        with open(self.output_file, mode='w', newline='') as file:
+        print(f"\n\nBase: {self.base_bboxes}\n\n")
+        print(f"Comparison: {self.comparison_bboxes}\n\n")
+        print(f"Matches: {self.matches}\n\n")
+
+        with open(self.output_file, mode="w", newline="") as file:
             writer = csv.writer(file)
-            writer.writerow(['Signs', 'Matched Signs'])
+            writer.writerow(
+                [
+                    "Gold Standard Sign",
+                    "Gold Standard Damage",
+                    "Gold Standard Coordinates",
+                    "Maintenance Sign",
+                    "Maintenance Damage",
+                    "Maintenance Coordinates",
+                ]
+            )
 
             for base_data, matched_data in zip(base_bboxes_data, matched_bboxes_data):
-                base_entry = f"{base_data['classification']} - {base_data['coordinates']}"
-                matched_entry = f"{matched_data['classification']} - {matched_data['coordinates']}" if matched_data else ''
-                writer.writerow([base_entry, matched_entry])
+                base_class = base_data["classification"]
+                base_damage = base_data["damage"]
+                base_coord = base_data["coordinates"]
+
+                comp_class = matched_data["classification"] if matched_data else ""
+                comp_damage = matched_data["damage"] if matched_data else ""
+                comp_coord = matched_data["coordinates"] if matched_data else ""
+                writer.writerow([base_class, base_damage, base_coord, comp_class, comp_damage, comp_coord])
 
         self.logger.info(f"CSV file generated at {self.output_file}")

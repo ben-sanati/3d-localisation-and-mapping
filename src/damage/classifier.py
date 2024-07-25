@@ -1,13 +1,11 @@
 import os
 import sys
-import pickle
 import os.path
-import argparse
 
+import cv2
 import torch
 import torch.nn as nn
 from PIL import Image
-from tqdm import tqdm
 from transformers import BeitForImageClassification, AutoImageProcessor
 
 
@@ -18,7 +16,7 @@ class DamageDetector(nn.Module):
 
     @authors: Benjamin Sanati
     """
-    def __init__(self, model_type):
+    def __init__(self, model_type="simple"):
         """
         @brief: Initializes the damage detector for processing. Sets up the classifier once, reducing the total processing time compared to
         setting up on every inference call.
@@ -55,10 +53,8 @@ class DamageDetector(nn.Module):
         # TODO: Accomodate batching for more efficient inference
         labels = []
         image_files = os.listdir(data_src)
-        total_images = len(image_files)
 
-        loop = tqdm(enumerate(image_files), total=total_images)
-        for index, (filename) in loop:
+        for index, (filename) in enumerate(image_files):
             image_path = os.path.join(data_src, filename)
             try:
                 image = Image.open(image_path).convert("RGB")
@@ -74,13 +70,12 @@ class DamageDetector(nn.Module):
 
                 # Prediction
                 predicted_class_idx = logits.argmax(-1).item()
-                predicted_class = self.model.config.id2label[predicted_class_idx].lower()
-                labels.append(predicted_class)
+                labels.append(predicted_class_idx)
             except Exception as e:
                 print(f"Error processing {image_path}: {e}", file=sys.stderr)
                 labels.append("error")
 
-            # Update progress bar
-            loop.set_description(f"Sign [{index + 1}/{len(os.listdir(data_src))}]")
-
         return labels
+
+    def get_class_label(self, class_idx):
+        return [self.model.config.id2label[idx].lower() for idx in class_idx]
