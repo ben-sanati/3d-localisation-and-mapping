@@ -214,19 +214,19 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Failed to write to file: {e}\n")
 
-    # Plot 3D Global Map
-    plot_map(
-        global_bboxes_data,
-        optimised_bboxes,
-        pose_df,
-        cfg.eps,
-        cfg.min_points,
-        cfg.ply_path,
-        cfg.preprocess_point_cloud,
-        cfg.overlay_pose,
-    )
+    if cfg.visualise:
+        # Plot 3D Global Map
+        plot_map(
+            global_bboxes_data,
+            optimised_bboxes,
+            pose_df,
+            cfg.eps,
+            cfg.min_points,
+            cfg.ply_path,
+            cfg.preprocess_point_cloud,
+            cfg.overlay_pose,
+        )
 
     # TODO: integrate bbox comparison methods into pipeline
     # TODO: define pipeline for gold_std vs. maintenance runs
-    # TODO: improve alignment using splitting procedure
     # TODO: make a requirements.txt file
