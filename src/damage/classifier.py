@@ -2,7 +2,6 @@ import os
 import sys
 import os.path
 
-import cv2
 import torch
 import torch.nn as nn
 from PIL import Image
@@ -13,6 +12,8 @@ class DamageDetector(nn.Module):
     """
     Damage detection class that initializes the ViT setup and allows for processing all signs in all inspectionWalkthrough media.
     To use the damage detector, call object() (do not use object.forward()). This will return the labels for each sign.
+
+    Future Improvement: Accomodate batching for more efficient inference
 
     @authors: Benjamin Sanati
     """
@@ -50,7 +51,6 @@ class DamageDetector(nn.Module):
 
         @authors: Benjamin Sanati
         """
-        # TODO: Accomodate batching for more efficient inference
         labels = []
         image_files = os.listdir(data_src)
 
