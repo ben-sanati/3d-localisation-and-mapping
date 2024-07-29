@@ -262,7 +262,7 @@ if __name__ == "__main__":
         ply_filepath=cfg.ply_path,
         preprocess_point_cloud=False,
         overlay_pose=False,
-        view_unprocessed_bboxes=False,
+        view_unprocessed_bboxes=True,
     )
 
     # Define the type of map to be made

@@ -34,6 +34,8 @@ class BBoxComparison:
         self.visualise = visualise
         self.output_file = output_file
 
+        print(f"Base: {base_bboxes}\n\nComparison: {comparison_bboxes}\n\n")
+
         self.matches = {}
         self.color_map = {}
         self.matched_base_indices = set()
@@ -78,6 +80,7 @@ class BBoxComparison:
                 
                 # Find the best match among the k nearest neighbors
                 best_match = None
+                print("\n\n")
                 for i in range(self.k_closest):
                     base_bbox = base_bbox_list[indices[i]]
                     if (
@@ -85,6 +88,7 @@ class BBoxComparison:
                         and abs(self._calculate_area(comp_bbox) - self._calculate_area(base_bbox))
                         < self.area_threshold
                     ):
+                        print(f"Comp Area: {self._calculate_area(comp_bbox)}\nBase Area: {self._calculate_area(base_bbox)}\nTotal: {abs(self._calculate_area(comp_bbox) - self._calculate_area(base_bbox))}\n")
                         best_match = (
                             indices[i],
                             (base_bbox[-1], base_bbox[-3], tuple(base_centroids[indices[i]]))  # Use tuple for hashable key
@@ -94,6 +98,7 @@ class BBoxComparison:
                         ] = best_match
                         self.matched_base_indices.add(indices[i])
 
+                print("\n\n")
         self.logger.info(f"Matches: {self.matches}")
 
         # Identify unmatched base bboxes
@@ -108,7 +113,7 @@ class BBoxComparison:
         self.logger.info(f"Unmatched base bboxes: {unmatched_base_bboxes}")
 
         # Output results to csv
-        self.generate_csv()
+        # self.generate_csv()
 
         # Visualise the bboxes and meshes
         if self.visualise:
@@ -128,9 +133,9 @@ class BBoxComparison:
             for bbox in bbox_list:
                 vertices = bbox[:4]
                 classification = bbox[-1]
-                color = self._get_colour_by_classification(classification)
+                colour = [1, 0, 0] # self._get_colour_by_classification(classification)
                 bbox_3d = self.transforms.create_3d_bounding_box(vertices, self.bbox_depth_buffer)
-                bbox_line_set = self.visualiser.overlay_3d_bbox(bbox_3d, colour=color)
+                bbox_line_set = self.visualiser.overlay_3d_bbox(bbox_3d, colour=colour)
                 vis.add_geometry(bbox_line_set)
 
         # Add comparison bboxes
@@ -138,9 +143,9 @@ class BBoxComparison:
             for bbox in bbox_list:
                 vertices = bbox[:4]
                 classification = bbox[-1]
-                color = self._get_colour_by_classification(classification)
+                colour = [0, 1, 0] # self._get_colour_by_classification(classification)
                 bbox_3d = self.transforms.create_3d_bounding_box(vertices, self.bbox_depth_buffer)
-                bbox_line_set = self.visualiser.overlay_3d_bbox(bbox_3d, colour=color)
+                bbox_line_set = self.visualiser.overlay_3d_bbox(bbox_3d, colour=colour)
                 vis.add_geometry(bbox_line_set)
 
         # Draw lines connecting matched bboxes and add spheres at centroids
