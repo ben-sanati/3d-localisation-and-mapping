@@ -2,6 +2,7 @@ import argparse
 import gc
 import os
 import pickle
+import logging
 import sys
 
 import torch
@@ -24,122 +25,144 @@ sys.path.append(
 )
 
 
-def extract_images(
-    db_path, img_size, batch_size, image_dir, depth_image_dir, calibration_dir
-):
-    print("Extracting frames...", flush=True)
-    extractor = ImageExtractor(db_path, depth_image_dir)
-    extractor.fetch_data()
+class Pipeline:
+    def __init__(self, cfg):
+        self.cfg = cfg
+        self.data_to_save = {}
 
-    # Create dataset
-    dataset = ImageDataset(
-        image_dir=image_dir,
-        depth_image_dir=depth_image_dir,
-        calibration_dir=calibration_dir,
-        img_size=img_size,
-    )
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+        # Initialize logging
+        logging.basicConfig(level=logging.INFO)
+        self.logger = logging.getLogger(__name__)
 
-    # Garbage collection
-    del extractor
-    gc.collect()
-    print("Frames extracted.\n", flush=True)
+    def run(self):
+        # TODO: integrate bbox comparison methods into pipeline
+        # TODO: define pipeline for gold_std vs. maintenance runs
 
-    return dataset, dataloader
+        # Extract images
+        dataset, dataloader = self._extract_images()
 
+        # Detecting signs
+        predictions = self._detect_signs(dataloader)
 
-def detect_signs(
-    dataloader, img_size, batch_size, conf_thresh, iou_thresh, view_img, processing_path
-):
-    # Instance model
-    print("Detecting Signs...", flush=True)
-    model = ObjectDetector(
-        conf_thresh=conf_thresh,
-        iou_thresh=iou_thresh,
-        img_size=img_size,
-        batch_size=batch_size,
-        view_img=view_img,
-        save_img=processing_path,
-    )
+        # Map detected objects
+        dataset = ImageDataset(
+            image_dir=cfg.image_dir,
+            depth_image_dir=cfg.depth_image_dir,
+            calibration_dir=cfg.calibration_dir,
+            img_size=cfg.img_size,
+            processing=False,
+        )
+        global_bboxes_data, optimised_bboxes, pose_df = self._map_detected_objects(
+            predictions,
+            dataset,
+        )
 
-    # Run inference
-    predictions = model(dataloader)
+        # Save as pickle file and load later to use in another script 
+        # Useful during development
+        self.data_to_save["dataset"] = dataset
+        self.data_to_save["dataloader"] = dataloader
+        self.data_to_save["predictions"] = predictions
+        self.data_to_save["global_bboxes_data"] = global_bboxes_data
+        self.data_to_save["optimised_bboxes"] = optimised_bboxes
+        self.data_to_save["pose_df"] = pose_df
 
-    # Perform garbage collection
-    torch.cuda.empty_cache()
-    del model
-    gc.collect()
-    print("Inference Complete.\n", flush=True)
+        try:
+            with open(cfg.pickle_path, "wb") as file:
+                pickle.dump(self.data_to_save, file)
+                self.logger.info("Variables stored to pickle file.")
+        except Exception as e:
+            self.logger.info(f"Failed to write to file: {e}")
 
-    return predictions
+        # Plot 3D Global Map
+        if self.cfg.visualise:
+            self._plot_map(
+                global_bboxes_data,
+                optimised_bboxes,
+                pose_df,
+            )
 
+    def _extract_images(self):
+        self.logger.info("Extracting frames...")
+        extractor = ImageExtractor(self.cfg.db_path, self.cfg.depth_image_dir)
+        extractor.fetch_data()
 
-def map_detected_objects(
-    pose_path, dataset, predictions, img_size, depth_width, depth_height, display_3d
-):
-    # Get the node information from the table
-    print("Extracting Pose Information...", flush=True)
-    extractor = PoseDataExtractor(pose_path)
-    pose_df = extractor.fetch_data()
-    del extractor
-    gc.collect()
-    print("Pose Information Extracted.\n", flush=True)
+        # Create dataset
+        dataset = ImageDataset(
+            image_dir=self.cfg.image_dir,
+            depth_image_dir=self.cfg.depth_image_dir,
+            calibration_dir=self.cfg.calibration_dir,
+            img_size=self.cfg.img_size,
+        )
+        dataloader = DataLoader(dataset, batch_size=self.cfg.batch_size, shuffle=False)
+        self.logger.info("Frames extracted.")
 
-    # Transform bbox coordinates to global coordinates
-    print("Processing Pose...", flush=True)
-    pose_processing = ProcessPose(
-        pose=pose_df,
-        dataset=dataset,
-        bbox_coordinates=predictions,
-        img_size=img_size,
-        depth_width=depth_width,
-        depth_height=depth_height,
-        display_3d=display_3d,
-    )
-    global_bboxes_data = pose_processing.get_global_coordinates()
-    print("Pose Processed.\n", flush=True)
+        return dataset, dataloader
 
-    # Perform 3D NMS
-    print("Executing 3D NMS...", flush=True)
-    optimise_bboxes = BoundingBoxProcessor(global_bboxes_data, pose_df)
-    optimised_bboxes = optimise_bboxes.suppress_bboxes()
-    print("3D NMS Executed.\n", flush=True)
+    def _detect_signs(self, dataloader):
+        # Instance model
+        self.logger.info("Detecting Signs...")
+        model = ObjectDetector(
+            conf_thresh=self.cfg.conf_thresh,
+            iou_thresh=self.cfg.iou_thresh,
+            img_size=self.cfg.img_size,
+            batch_size=self.cfg.batch_size,
+            view_img=self.cfg.view_img,
+            save_img=self.cfg.processing_path,
+        )
 
-    # Garbage collection
-    del pose_processing
-    gc.collect()
+        # Run inference
+        predictions = model(dataloader)
+        self.logger.info("Inference Complete.")
 
-    return global_bboxes_data, optimised_bboxes, pose_df
+        return predictions
 
+    def _map_detected_objects(self, predictions, dataset):
+        # Get the node information from the table
+        self.logger.info("Extracting Pose Information...")
+        extractor = PoseDataExtractor(self.cfg.pose_path)
+        pose_df = extractor.fetch_data()
+        self.logger.info("Pose Information Extracted.")
 
-def plot_map(
-    global_bboxes_data,
-    optimised_bboxes,
-    pose_df,
-    eps,
-    min_points,
-    ply_path,
-    preprocess_point_cloud,
-    overlay_pose,
-):
-    # Map the bounding box information to the global 3D map
-    print("Generating 3D Map...", flush=True)
-    mapper = Mapping(
-        global_bboxes_data=global_bboxes_data,
-        optimised_bboxes=optimised_bboxes,
-        pose=pose_df,
-        eps=eps,
-        min_points=min_points,
-        ply_filepath=ply_path,
-        preprocess_point_cloud=preprocess_point_cloud,
-        overlay_pose=overlay_pose,
-    )
-    mapper.make_mesh()
+        # Transform bbox coordinates to global coordinates
+        self.logger.info("Processing Pose...")
+        pose_processing = ProcessPose(
+            pose=pose_df,
+            dataset=dataset,
+            bbox_coordinates=predictions,
+            img_size=self.cfg.img_size,
+            depth_width=self.cfg.depth_width,
+            depth_height=self.cfg.depth_height,
+            display_3d=self.cfg.display_3d,
+        )
+        global_bboxes_data = pose_processing.get_global_coordinates()
+        self.logger.info("Pose Processed.")
 
-    # Garbage collection
-    del mapper
-    gc.collect()
-    print("3D Map Generated.", flush=True)
+        # Perform 3D NMS
+        self.logger.info("Executing 3D NMS...")
+        optimise_bboxes = BoundingBoxProcessor(global_bboxes_data, pose_df)
+        optimised_bboxes = optimise_bboxes.suppress_bboxes()
+        self.logger.info("3D NMS Executed.")
+
+        return global_bboxes_data, optimised_bboxes, pose_df
+
+    def _plot_map(self, global_bboxes_data, optimised_bboxes, pose_df):
+        # Map the bounding box information to the global 3D map
+        self.logger.info("Generating 3D Map...")
+        mapper = Mapping(
+            global_bboxes_data=global_bboxes_data,
+            optimised_bboxes=optimised_bboxes,
+            pose=pose_df,
+            eps=self.cfg.eps,
+            min_points=self.cfg.min_points,
+            ply_filepath=self.cfg.ply_path,
+            preprocess_point_cloud=self.cfg.preprocess_point_cloud,
+            overlay_pose=self.cfg.overlay_pose,
+        )
+        mapper.make_mesh()
+        self.logger.info("3D Map Generated.")
+
+    def _goldstd_vs_maintenance(self):
+        pass
 
 
 if __name__ == "__main__":
@@ -155,78 +178,5 @@ if __name__ == "__main__":
     config_path = r"src/common/configs/variables.cfg"
     cfg = ConfigLoader(config_path, data_folder)
 
-    # Extract images
-    dataset, dataloader = extract_images(
-        cfg.db_path,
-        cfg.img_size,
-        cfg.batch_size,
-        cfg.image_dir,
-        cfg.depth_image_dir,
-        cfg.calibration_dir,
-    )
-    data_to_save = {}
-    data_to_save["dataset"] = dataset
-    data_to_save["dataloader"] = dataloader
-
-    # Detecting signs
-    predictions = detect_signs(
-        dataloader,
-        cfg.img_size,
-        cfg.batch_size,
-        cfg.conf_thresh,
-        cfg.iou_thresh,
-        cfg.view_img,
-        cfg.processing_path,
-    )
-    data_to_save["predictions"] = predictions
-    print(f"Predictions: {predictions}")
-    del dataloader
-    gc.collect()
-
-    # Map detected objects
-    dataset = ImageDataset(
-        image_dir=cfg.image_dir,
-        depth_image_dir=cfg.depth_image_dir,
-        calibration_dir=cfg.calibration_dir,
-        img_size=cfg.img_size,
-        processing=False,
-    )
-    global_bboxes_data, optimised_bboxes, pose_df = map_detected_objects(
-        cfg.pose_path,
-        dataset,
-        predictions,
-        cfg.img_size,
-        cfg.depth_width,
-        cfg.depth_height,
-        cfg.display_3d,
-    )
-    print(f"Optimised BBoxes Data: {optimised_bboxes}")
-
-    # Save as pickle file and load later to use in another script
-    data_to_save["global_bboxes_data"] = global_bboxes_data
-    data_to_save["optimised_bboxes"] = optimised_bboxes
-    data_to_save["pose_df"] = pose_df
-
-    try:
-        with open(cfg.pickle_path, "wb") as file:
-            pickle.dump(data_to_save, file)
-            print("Variables stored to pickle file.\n", flush=True)
-    except Exception as e:
-        print(f"Failed to write to file: {e}\n")
-
-    if cfg.visualise:
-        # Plot 3D Global Map
-        plot_map(
-            global_bboxes_data,
-            optimised_bboxes,
-            pose_df,
-            cfg.eps,
-            cfg.min_points,
-            cfg.ply_path,
-            cfg.preprocess_point_cloud,
-            cfg.overlay_pose,
-        )
-
-    # TODO: integrate bbox comparison methods into pipeline
-    # TODO: define pipeline for gold_std vs. maintenance runs
-    # TODO: make a requirements.txt file
+    pipeline = Pipeline(cfg)
+    pipeline.run()

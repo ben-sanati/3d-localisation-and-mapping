@@ -41,7 +41,7 @@ class ObjectDetector(nn.Module):
         batch_size,
         view_img,
         save_img,
-        weights=r"src/common/finetuned_models/best.pt",
+        weights=r"src/common/finetuned_models/yolo/best.pt",
         temp_damage_path=r"src/common/temp_damage",
     ):
         """

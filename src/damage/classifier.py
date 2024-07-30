@@ -28,9 +28,9 @@ class DamageDetector(nn.Module):
 
         sys.stdout = open(os.devnull, "w")  # Block printing momentarily
         if model_type == "detailed":
-            repo_name = r"src/damage/finetuned_models/BEiT-fine-finetuned"
+            repo_name = r"src/common/finetuned_models/BEiT-fine-finetuned"
         elif model_type == "simple":
-            repo_name = r"src/damage/finetuned_models/BEiT-coarse-finetuned"
+            repo_name = r"src/common/finetuned_models/BEiT-coarse-finetuned"
         else:
             raise ValueError("Invalid model type. Choose either 'detailed' or 'simple'.")
 
