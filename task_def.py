@@ -132,7 +132,7 @@ class Pipeline:
             img_size=self.cfg.img_size,
             depth_width=self.cfg.depth_width,
             depth_height=self.cfg.depth_height,
-            display_3d=self.cfg.display_3d,
+            display_3d=self.cfg.display_3d_pose,
         )
         global_bboxes_data = pose_processing.get_global_coordinates()
         self.logger.info("Pose Processed.")
