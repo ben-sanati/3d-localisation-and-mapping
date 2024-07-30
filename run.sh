@@ -1,6 +1,5 @@
 #!/bin/bash
 
-LOGS="src/common/out"
 DATA="gold_std"
 SETUP=false
 
@@ -18,4 +17,4 @@ if $SETUP; then
     python3 "src/common/data/setup.py" --data "$DATA"
 fi
 
-python3 "task_def.py" --data "$DATA" > "$LOGS/${DATA}_debug.out"
+python3 "task_def.py" --data "$DATA"

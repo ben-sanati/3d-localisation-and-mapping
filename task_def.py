@@ -12,6 +12,8 @@ from src.detector.detector import ObjectDetector
 from src.mapper.bbox_optimiser import BoundingBoxProcessor
 from src.mapper.database_query import PoseDataExtractor
 from src.mapper.mapping import Mapping
+from src.map_alignment.align import Alignment
+from src.map_alignment.comparison import BBoxComparison
 from src.mapper.pose_processor import ProcessPose
 from src.utils.config import ConfigLoader
 from torch.utils.data import DataLoader
@@ -26,8 +28,11 @@ sys.path.append(
 
 
 class Pipeline:
-    def __init__(self, cfg):
+    def __init__(self, data_folder, cfg, cfg_goldstd, goldstd_var=None):
         self.cfg = cfg
+        self.cfg_goldstd = cfg_goldstd
+        self.data_folder = data_folder
+        self.goldstd_var = goldstd_var
         self.data_to_save = {}
 
         # Initialize logging
@@ -35,9 +40,6 @@ class Pipeline:
         self.logger = logging.getLogger(__name__)
 
     def run(self):
-        # TODO: integrate bbox comparison methods into pipeline
-        # TODO: define pipeline for gold_std vs. maintenance runs
-
         # Extract images
         dataset, dataloader = self._extract_images()
 
@@ -80,6 +82,10 @@ class Pipeline:
                 optimised_bboxes,
                 pose_df,
             )
+
+        # Compare maps if Gold-Std. is given in (proxy for setup being already completed)
+        if self.cfg_goldstd:
+            self._goldstd_vs_maintenance(pose_df, optimised_bboxes)
 
     def _extract_images(self):
         self.logger.info("Extracting frames...")
@@ -161,12 +167,53 @@ class Pipeline:
         mapper.make_mesh()
         self.logger.info("3D Map Generated.")
 
-    def _goldstd_vs_maintenance(self):
-        pass
+    def _goldstd_vs_maintenance(self, maintenance_pose_df, maintenance_optimised_bboxes):
+        # Align bboxes from maintenance scan onto the gold-std scan for comparison
+        map_alignment = Alignment(
+            base_pose_df=self.goldstd_var["pose_df"],
+            comparison_pose_df=maintenance_pose_df,
+            base_bboxes=self.goldstd_var["optimised_bboxes"],
+            comparison_bboxes=maintenance_optimised_bboxes,
+            visualise=False,
+        )
+        (
+            aligned_maintenance_bboxes,
+            _,
+            goldstd_mesh,
+            _,
+        ) = map_alignment.compare(self.data_folder)
+
+        # Compare the bboxes and output results to a csv file
+        compare_bboxes = BBoxComparison(
+            self.goldstd_var["optimised_bboxes"],
+            aligned_maintenance_bboxes,
+            goldstd_mesh,
+            visualise=True,
+            csv_output_file=f"src/common/results/{self.data_folder}.csv",
+        )
+        compare_bboxes.match_bboxes()
+
+
+def load_gold_std(pickle_path):
+    try:
+        with open(pickle_path, "rb") as read_file:
+            return pickle.load(read_file)
+    except FileNotFoundError:
+        logging.error(f"The file {pickle_path} was not found.")
+        return None
+    except pickle.UnpicklingError:
+        logging.error(f"Failed to unpickle the file {pickle_path}.")
+        return None
+
+def setup_pipeline(data_folder, cfg, cfg_goldstd, goldstd_var=None):
+    pipeline = Pipeline(data_folder, cfg, cfg_goldstd, goldstd_var)
+    pipeline.run()
+    return pipeline
 
 
 if __name__ == "__main__":
     # Setup argparse config
+    logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser(description="Processing Configuration")
     parser.add_argument(
         "--data", type=str, help="Data Folder Name.", default="gold_std"
@@ -174,9 +221,25 @@ if __name__ == "__main__":
     args = parser.parse_args()
     data_folder = args.data
 
-    # Load the configuration
+    # Load the configs
     config_path = r"src/common/configs/variables.cfg"
     cfg = ConfigLoader(config_path, data_folder)
+    cfg_goldstd = ConfigLoader(config_path, "gold_std")
 
-    pipeline = Pipeline(cfg)
-    pipeline.run()
+    # Automated setup check logic
+    if data_folder == "gold_std":
+        setup_pipeline(data_folder, cfg_goldstd, None)
+    else:
+        # Make sure gold-std setup is done
+        if os.path.exists(cfg_goldstd.pickle_path) == False:
+            # We first have to run the setup with Gold-Std. before run
+            logging.info("Performing setup before maintenance check.")
+            setup_pipeline(data_folder, cfg_goldstd, None)
+
+        # Fetch stored variables
+        goldstd_var = load_gold_std(cfg_goldstd.pickle_path)
+        logging.info("Fetched Gold-Std. Data.")
+
+        # We can perform a maintenance run
+        logging.info("Executing maintenance check.")
+        setup_pipeline(data_folder, cfg, cfg_goldstd, goldstd_var=goldstd_var)

@@ -2,6 +2,7 @@ import argparse
 import os
 import pickle
 import sys
+import logging
 from contextlib import contextmanager
 
 import cv2
@@ -78,6 +79,11 @@ class ProcessPose:
         # Instance util classes
         self.visualiser = Visualiser()
         self.transforms = Transforms()
+
+        # Initialize logging
+        logging.basicConfig(level=logging.INFO)
+        self.logger = logging.getLogger(__name__)
+        self.logger.info("Processing Pose.")
 
     def get_global_coordinates(self):
         loop = tqdm(self.bbox_coordinates.items(), total=len(self.bbox_coordinates))
@@ -201,11 +207,11 @@ class ProcessPose:
             frame_global_bboxes.append(global_corners + bbox[-3:])
 
             if self.verbose:
-                print(f"\tOriginal 2D Corners: {corners}")
-                print(f"\tScaled 2D Corners: {scaled_corners}")
-                print(f"\t3D Corners before Mapping: {corners_3d}")
-                print(f"\tGlobal 3D Coordinates: {global_corners}\n")
-                print(
+                self.logger.info(f"\tOriginal 2D Corners: {corners}")
+                self.logger.info(f"\tScaled 2D Corners: {scaled_corners}")
+                self.logger.info(f"\t3D Corners before Mapping: {corners_3d}")
+                self.logger.info(f"\tGlobal 3D Coordinates: {global_corners}\n")
+                self.logger.info(
                     f"\tFinal 3D Coordinates:\n\t{global_corners} => {global_corners}"
                 )
 

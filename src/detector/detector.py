@@ -3,6 +3,7 @@ import os
 import sys
 import glob
 import pickle
+import logging
 
 import cv2
 import numpy as np
@@ -67,9 +68,12 @@ class ObjectDetector(nn.Module):
         @authors: Benjamin Sanati
         """
         super(ObjectDetector, self).__init__()
-        print("\tConfiguring Model...", flush=True)
 
-        sys.stdout = open(os.devnull, "w")  # block printing momentarily
+        # Initialize logging
+        logging.basicConfig(level=logging.INFO)
+        self.logger = logging.getLogger(__name__)
+        self.logger.info("Configuring Models...")
+        sys.stdout = open(os.devnull, "w")  # Block printing momentarily
 
         # Initialize data and hyperparameters (to be made into argparse arguments)
         self.device = torch.device("cuda:0")
@@ -87,7 +91,7 @@ class ObjectDetector(nn.Module):
         self._initialize_model()
         self._initialize_auxiliary_data()
         self.damage_classifier = DamageDetector()
-        print("\tModels Configured.", flush=True)
+        self.logger.info("Models Configured.")
 
         # Get names
         self.names = [
@@ -159,7 +163,6 @@ class ObjectDetector(nn.Module):
 
                     # Integrate damage classifier
                     damage_classification = self.damage_classifier(self.temp_damage_path)
-                    # print(f"Damage Classification: {self.damage_classifier.get_class_label(damage_classification)}\n")
 
                     # Delete images in temp damage folder
                     self._delete_all_files_in_directory()
@@ -316,6 +319,7 @@ class ObjectDetector(nn.Module):
 
 if __name__ == "__main__":
     # Setup argparse config
+    logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser(description="Processing Configuration")
     parser.add_argument(
         "--data", type=str, help="Data Folder Name.", default="gold_std"
@@ -344,4 +348,4 @@ if __name__ == "__main__":
 
     # run inference
     model(variables["dataloader"])
-    print("Inference Complete!", flush=True)
+    logging.info("Inference Complete!")

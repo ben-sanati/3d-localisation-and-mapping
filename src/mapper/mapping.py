@@ -2,6 +2,7 @@ import argparse
 import os
 import pickle
 import sys
+import logging
 
 import numpy as np
 import open3d as o3d
@@ -66,6 +67,10 @@ class Mapping:
             print_progress=True,
         )
 
+        # Initialize logging
+        logging.basicConfig(level=logging.INFO)
+        self.logger = logging.getLogger(__name__)
+
         # Instance util classes
         self.visualiser = Visualiser()
         self.transforms = Transforms()
@@ -84,15 +89,11 @@ class Mapping:
             self._clustering()
 
         # Create mesh
-        print("\tMaking mesh...")
+        self.logger.info("\tMaking mesh...")
         mesh = self._poisson_surface_recon()
 
-        # # Optimise mesh
-        # print("\tOptimising mesh...")
-        # mesh = self._optimise_mesh(mesh)
-
         # Visualise mesh
-        print("\tVisualising mesh...")
+        self.logger.info("\tVisualising mesh...")
         self._visualiser(mesh)
 
     def _clustering(self):
@@ -108,7 +109,7 @@ class Mapping:
 
         # Calculate the number of point clouds
         max_label = labels.max()
-        print(f"point cloud has {max_label + 1} clusters", flush=True)
+        self.logger.info(f"point cloud has {max_label + 1} clusters")
 
         # Find the largest cluster
         largest_cluster_label = np.argmax(np.bincount(labels[labels >= 0]))
@@ -132,21 +133,6 @@ class Mapping:
             depth=self.depth,
             scale=self.scale_factor,
         )
-
-        return mesh
-
-    def _optimise_mesh(self, mesh):
-        # Smooth mesh -> less noise in mesh (using Laplacian filter)
-        mesh = mesh.filter_smooth_laplacian(number_of_iterations=1)
-
-        # Mesh denoising -> further cleans surface by removing noise
-        mesh = mesh.filter_smooth_simple(number_of_iterations=2)
-
-        # Mesh refinement -> increases resolution and improves smoothness
-        mesh = mesh.subdivide_midpoint(number_of_iterations=1)
-
-        # Scale the mesh
-        mesh.scale(self.scale_factor, center=(0, 0, 0))
 
         return mesh
 

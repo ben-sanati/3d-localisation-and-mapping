@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 import os.path
 
 import torch
@@ -38,6 +39,10 @@ class DamageDetector(nn.Module):
         self.image_processor = AutoImageProcessor.from_pretrained(repo_name)
         self.model = BeitForImageClassification.from_pretrained(repo_name).to(self.device)
 
+        # Initialize logging
+        logging.basicConfig(level=logging.INFO)
+        self.logger = logging.getLogger(__name__)
+
         sys.stdout = sys.__stdout__  # Enable printing
 
     def forward(self, data_src):
@@ -72,7 +77,7 @@ class DamageDetector(nn.Module):
                 predicted_class_idx = logits.argmax(-1).item()
                 labels.append(predicted_class_idx)
             except Exception as e:
-                print(f"Error processing {image_path}: {e}", file=sys.stderr)
+                self.logger.info(f"Error processing {image_path}: {e}", file=sys.stderr)
                 labels.append("error")
 
         return labels
