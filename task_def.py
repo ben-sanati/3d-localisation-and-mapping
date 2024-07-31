@@ -36,7 +36,6 @@ class Pipeline:
         # Initialize logging
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
-        self.logger.info(f"Gold STD: {self.goldstd_var}")
 
     def run(self):
         # Extract images
@@ -173,7 +172,7 @@ class Pipeline:
             comparison_pose_df=maintenance_pose_df,
             base_bboxes=self.goldstd_var["optimised_bboxes"],
             comparison_bboxes=maintenance_optimised_bboxes,
-            visualise=False,
+            visualise=self.cfg.alignment_vis,
         )
         (
             aligned_maintenance_bboxes,
@@ -187,8 +186,8 @@ class Pipeline:
             self.goldstd_var["optimised_bboxes"],
             aligned_maintenance_bboxes,
             goldstd_mesh,
-            visualise=True,
-            csv_output_file=f"src/common/results/{self.data_folder}.csv",
+            visualise=self.cfg.comparison_vis,
+            csv_output_file=self.cfg.csv_output,
         )
         compare_bboxes.match_bboxes()
 
