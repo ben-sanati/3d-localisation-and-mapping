@@ -38,6 +38,7 @@ class Pipeline:
         # Initialize logging
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
+        self.logger.info(f"Gold STD: {self.goldstd_var}")
 
     def run(self):
         # Extract images
@@ -48,10 +49,10 @@ class Pipeline:
 
         # Map detected objects
         dataset = ImageDataset(
-            image_dir=cfg.image_dir,
-            depth_image_dir=cfg.depth_image_dir,
-            calibration_dir=cfg.calibration_dir,
-            img_size=cfg.img_size,
+            image_dir=self.cfg.image_dir,
+            depth_image_dir=self.cfg.depth_image_dir,
+            calibration_dir=self.cfg.calibration_dir,
+            img_size=self.cfg.img_size,
             processing=False,
         )
         global_bboxes_data, optimised_bboxes, pose_df = self._map_detected_objects(
@@ -69,7 +70,7 @@ class Pipeline:
         self.data_to_save["pose_df"] = pose_df
 
         try:
-            with open(cfg.pickle_path, "wb") as file:
+            with open(self.cfg.pickle_path, "wb") as file:
                 pickle.dump(self.data_to_save, file)
                 self.logger.info("Variables stored to pickle file.")
         except Exception as e:

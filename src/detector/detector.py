@@ -175,7 +175,6 @@ class ObjectDetector(nn.Module):
 
                 # Update progress bar
                 loop.set_description(f"Image [{idx + 1}/{len(dataloader)}]")
-
         return predictions
 
     def _inference(self, data):
