@@ -1,11 +1,9 @@
 import argparse
-import gc
 import os
 import pickle
 import logging
 import sys
 
-import torch
 from src.detector.database_query import ImageExtractor
 from src.detector.dataset import ImageDataset
 from src.detector.detector import ObjectDetector
