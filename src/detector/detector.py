@@ -342,7 +342,6 @@ if __name__ == "__main__":
         batch_size=2,
         view_img=False,
         save_img=f"src/common/data/{data_folder}/processed_img",
-        weights=r"src/common/finetuned_models/best.pt",
     )
 
     # run inference
