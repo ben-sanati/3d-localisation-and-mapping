@@ -107,15 +107,15 @@ class Pipeline:
         self.logger.info("Detecting Signs...")
         model = ObjectDetector(
             conf_thresh=self.cfg.conf_thresh,
-            iou_thresh=self.cfg.iou_thresh,
             img_size=self.cfg.img_size,
             batch_size=self.cfg.batch_size,
             view_img=self.cfg.view_img,
             save_img=self.cfg.processing_path,
+            data_root=self.cfg.image_dir,
         )
 
         # Run inference
-        predictions = model(dataloader)
+        predictions = model()
         self.logger.info("Inference Complete.")
 
         return predictions
