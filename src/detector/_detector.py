@@ -1,4 +1,5 @@
 import os
+import sys
 import cv2
 import glob
 import logging
@@ -6,9 +7,15 @@ import argparse
 import numpy as np
 import torch
 import shutil
+from tqdm import tqdm
 from ultralytics import YOLOv10
 from pathlib import Path
 from numpy import random
+from skimage import transform
+
+sys.path.insert(0, r"../..")
+
+from src.damage.classifier import DamageDetector  # noqa
 
 class ObjectDetector:
     """
@@ -22,9 +29,9 @@ class ObjectDetector:
         batch_size,
         view_img,
         save_img,
-        weights,
         data_root,
-        temp_damage_path,
+        weights=r"src/common/finetuned_models/yolov10/best.pt",
+        temp_damage_path=r"src/common/temp_damage",
     ):
         super(ObjectDetector, self).__init__()
 
@@ -45,8 +52,9 @@ class ObjectDetector:
         self.temp_damage_path = temp_damage_path
         self.idx = 0
 
-        # Load YOLOv10 model
+        # Load YOLOv10 model and damage classification model
         self.model = YOLOv10(weights).to(self.device)
+        self.damage_classifier = DamageDetector()
 
         # Define class names and colors for visualization
         self.names = self.model.names
@@ -67,7 +75,7 @@ class ObjectDetector:
         
         # Run inference
         self.logger.info("Performing Inference...")
-        self.model(source=self.data_root, batch=self.batch_size, conf=self.conf_thresh, save_txt=True, verbose=True)
+        self.model(source=self.data_root, batch=self.batch_size, conf=self.conf_thresh, save_txt=True, verbose=False)
         
         # Ensure all images have a corresponding txt file, create empty txt files if necessary
         image_files = sorted(os.listdir(self.data_root), key=lambda x: int(Path(x).stem))
@@ -79,9 +87,8 @@ class ObjectDetector:
             if image_stem not in txt_file_names:
                 (Path(output_dir) / f"{image_stem}.txt").touch()
 
-        self.logger.info(f"Image Files: {image_files}\nText Files: {txt_files}")
-
-        for idx, image_file in enumerate(image_files):
+        loop = tqdm(enumerate(image_files), total=len(image_files))
+        for idx, image_file in loop:
             # Load image and predictions
             img_path = os.path.join(self.data_root, image_file)
             img = cv2.imread(img_path)
@@ -98,15 +105,16 @@ class ObjectDetector:
             # Integrate damage classifier
             damage_classification = self.damage_classifier(self.temp_damage_path)
 
-            # Delete images in temp damage folder
+            # # Delete images in temp damage folder
             self._delete_all_files_in_directory()
 
             # Add to dictionary
             for bbox, classification in zip(preds, damage_classification):
-                bbox.insert(-2, classification)
+                bbox.insert(-1, classification)
+                bbox.insert(-1, 0.9)  # Dummy confidence value (no longer needed but rest of code is dependent on it)
 
             predictions[idx] = preds
-        
+
         # Clean up the output directory
         shutil.rmtree("runs")
 
@@ -160,11 +168,7 @@ class ObjectDetector:
             cv2.destroyAllWindows()
 
     def _parse_damage(self, img, pred):
-        # Parse image
-        img = img.squeeze().cpu()
-        img = img.permute(1, 2, 0).numpy()
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
+        # Perform Homography on each sign in image
         for bbox_idx, (p) in enumerate(pred):
             bbox_coord = p[:4]
             self._perform_homography(bbox_coord, img, bbox_idx)
@@ -229,9 +233,7 @@ if __name__ == "__main__":
         batch_size=16,
         view_img=False,
         save_img=f"src/common/data/{args.data}/processed_img",
-        weights=r"src/common/finetuned_models/yolov10/best.pt",
         data_root=f"src/common/data/{args.data}/rtabmap_extract/data_rgb",
-        temp_damage_path=r"src/common/temp_damage",
     )
 
     predictions = detector.forward()
