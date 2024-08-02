@@ -76,7 +76,7 @@ class ObjectDetector(nn.Module):
         
         # Run inference
         self.logger.info("Performing Inference...")
-        self.model(source=self.data_root, batch=self.batch_size, conf=self.conf_thresh, save_txt=True, verbose=False)
+        self.model(source=self.data_root, batch=self.batch_size, conf=self.conf_thresh, save_txt=True, save_conf=True, verbose=False)
         
         # Ensure all images have a corresponding txt file, create empty txt files if necessary
         image_files = sorted(os.listdir(self.data_root), key=lambda x: int(Path(x).stem))
@@ -111,8 +111,9 @@ class ObjectDetector(nn.Module):
 
             # Add to dictionary
             for bbox, classification in zip(preds, damage_classification):
-                bbox.insert(-1, classification)
-                bbox.insert(-1, 0.9)  # Dummy confidence value (no longer needed but rest of code is dependent on it)
+                bbox.insert(-2, classification)
+
+            self.logger.info(f"Preds: {preds}")
 
             predictions[idx] = preds
 
@@ -132,7 +133,7 @@ class ObjectDetector(nn.Module):
         for line in lines:
             data = line.strip().split()
             label = int(data[0])
-            x_center, y_center, w, h = map(float, data[1:])
+            x_center, y_center, w, h, conf = map(float, data[1:])
             
             # Convert YOLO format (center x, center y, width, height) to (x1, y1, x2, y2)
             x1 = (x_center - w / 2) * img_width
@@ -140,7 +141,7 @@ class ObjectDetector(nn.Module):
             x2 = (x_center + w / 2) * img_width
             y2 = (y_center + h / 2) * img_height
             
-            predictions.append([x1, y1, x2, y2, label])
+            predictions.append([x1, y1, x2, y2, conf, label])
         
         return predictions
 
@@ -151,7 +152,7 @@ class ObjectDetector(nn.Module):
         for idx, (img, pred) in enumerate(zip(data, preds)):
             img = img.copy()
             for bbox in pred:
-                x1, y1, x2, y2, label = bbox
+                x1, y1, x2, y2, conf, label = bbox
                 color = self.colors[label]
                 cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), color, 2)
                 cv2.putText(img, self.names[label], (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
