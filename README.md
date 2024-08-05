@@ -68,3 +68,14 @@ The AKT project not only met its initial goals but also positioned our client fo
   <br>
   <em>Bounding box matching between objects of interest in Scan 1 (red) and Scan 2 (green).</em>
 </p>
+
+## Open-Source Usage
+- 3D open-source SLAM algorithms are based on RTAB-Map [1]
+- The object detector model is a finetuned YOLOv10 object detection model [2]
+- The image classification model is a finetuned BEiT image classification model [3]
+
+### References
+
+[1] Labbé, M. and Michaud, F., 2019. RTAB‐Map as an open‐source lidar and visual simultaneous localization and mapping library for large‐scale and long‐term online operation. Journal of field robotics, 36(2), pp.416-446.
+[2] Wang, A., Chen, H., Liu, L., Chen, K., Lin, Z., Han, J. and Ding, G., 2024. Yolov10: Real-time end-to-end object detection. arXiv preprint arXiv:2405.14458.
+[3] Bao, H., Dong, L., Piao, S. and Wei, F., 2021. Beit: Bert pre-training of image transformers. arXiv preprint arXiv:2106.08254.
