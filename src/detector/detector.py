@@ -26,6 +26,7 @@ class ObjectDetector(nn.Module):
     def __init__(
         self,
         conf_thresh,
+        iou_thresh,
         img_size,
         batch_size,
         view_img,
@@ -45,6 +46,7 @@ class ObjectDetector(nn.Module):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.weights = weights
         self.conf_thresh = conf_thresh
+        self.iou_thresh = iou_thresh
         self.view_img = view_img
         self.img_size = img_size
         self.batch_size = batch_size
@@ -76,7 +78,15 @@ class ObjectDetector(nn.Module):
         
         # Run inference
         self.logger.info("Performing Inference...")
-        self.model(source=self.data_root, batch=self.batch_size, conf=self.conf_thresh, save_txt=True, save_conf=True, verbose=False)
+        self.model(
+            source=self.data_root,
+            batch=self.batch_size,
+            conf=self.conf_thresh,
+            iou=self.iou_thresh,
+            save_txt=True,
+            save_conf=True,
+            verbose=False,
+        )
         
         # Ensure all images have a corresponding txt file, create empty txt files if necessary
         image_files = sorted(os.listdir(self.data_root), key=lambda x: int(Path(x).stem))
@@ -106,14 +116,12 @@ class ObjectDetector(nn.Module):
             # Integrate damage classifier
             damage_classification = self.damage_classifier(self.temp_damage_path)
 
-            # # Delete images in temp damage folder
+            # Delete images in temp damage folder
             self._delete_all_files_in_directory()
 
             # Add to dictionary
             for bbox, classification in zip(preds, damage_classification):
                 bbox.insert(-2, classification)
-
-            self.logger.info(f"Preds: {preds}")
 
             predictions[idx] = preds
 
@@ -230,7 +238,8 @@ if __name__ == "__main__":
 
     # Initialize and run the object detector
     detector = ObjectDetector(
-        conf_thresh=0.5,
+        conf_thresh=0.9,
+        iou_thresh=0.7,
         img_size=640,
         batch_size=16,
         view_img=False,

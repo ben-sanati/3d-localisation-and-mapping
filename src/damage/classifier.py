@@ -18,7 +18,7 @@ class DamageDetector(nn.Module):
 
     @authors: Benjamin Sanati
     """
-    def __init__(self, model_type="simple"):
+    def __init__(self, model_type="simple", initialise=True):
         """
         @brief: Initializes the damage detector for processing. Sets up the classifier once, reducing the total processing time compared to
         setting up on every inference call.
@@ -27,7 +27,6 @@ class DamageDetector(nn.Module):
         """
         super(DamageDetector, self).__init__()
 
-        sys.stdout = open(os.devnull, "w")  # Block printing momentarily
         if model_type == "detailed":
             repo_name = r"src/common/finetuned_models/BEiT-fine-finetuned"
         elif model_type == "simple":
@@ -36,14 +35,16 @@ class DamageDetector(nn.Module):
             raise ValueError("Invalid model type. Choose either 'detailed' or 'simple'.")
 
         self.device = torch.device("cuda")
-        self.image_processor = AutoImageProcessor.from_pretrained(repo_name)
         self.model = BeitForImageClassification.from_pretrained(repo_name).to(self.device)
+        if initialise:
+            self._initialise_model(repo_name)
 
         # Initialize logging
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
 
-        sys.stdout = sys.__stdout__  # Enable printing
+    def _initialise_model(self, repo_name):
+        self.image_processor = AutoImageProcessor.from_pretrained(repo_name)
 
     def forward(self, data_src):
         """
@@ -83,4 +84,8 @@ class DamageDetector(nn.Module):
         return labels
 
     def get_class_label(self, class_idx):
-        return [self.model.config.id2label[idx].lower() for idx in class_idx]
+        id2label = lambda idx : self.model.config.id2label[idx].lower()
+        if type(class_idx) == list:
+            return [id2label(idx) for idx in class_idx]
+        else:
+            return id2label(class_idx)
