@@ -1,4 +1,4 @@
-# Table of Contents
+## Table of Contents
 
 * [Localisation and Mapping of Signage on Train Vehicles - Innovate UK AKT Project](#localisation-and-mapping-of-signage-on-train-vehicles---innovate-uk-akt-project)
   * [Bespoke Algorithms](#bespoke-algorithms)
@@ -7,11 +7,26 @@
 
 # Localisation and Mapping of Signage on Train Vehicles - Innovate UK AKT Project
 
+This was an Innovate UK AKT project that was a collaboration between the University of Southampton and an industry client. The key goals of the project were as follows
+
+- **Curating Gold-Standard and Maintenance Data** 
+    - Accomplished at a train depot, forming the basis for solution testing and validation.
+- **Self-Localization, Detection, and Mapping on Mobile Devices** 
+    - Implemented using open-source software integrated into the backend processing pipeline, thoroughly tested for real-world performance.
+- **Detection and Labelling in 3D Point Clouds** 
+    - Utilized advanced computer vision and machine learning techniques to accurately map signage within point clouds.
+- **Prototyping Non-Conformance Detection in Vehicles** 
+    - Developed a system to identify missing and damaged signage within train vehicles, crucial for the auditing process.
+
 <p align="center">
   <img src="readme_img/LiDARMap.gif" alt="Demo Video"/>
   <br>
     <em>RTAB-Map Generated LiDAR scan of vehicle interior.</em>
 </p>
+
+Beyond these core objectives, we delivered a strategic roadmap to guide our clients in transitioning to a data-driven organization. This roadmap included recommendations on integrating the developed technologies, adopting data-driven decision-making practices, and scaling product deployment for maximum impact.
+
+The AKT project not only met its initial goals but also positioned our client for future growth and innovation by equipping them with the necessary tools, insights, and strategic direction to achieve their long-term objectives.
 
 ## Bespoke Algorithms
 
