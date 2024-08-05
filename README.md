@@ -113,27 +113,26 @@ All Python dependencies are listed in the `requirements.txt` file. Create a new 
 ## Folder Hierarchy
 
 ```plaintext
-
 .
 ├── run.sh
 └── task_def.py
 ├── src
-│   ├── common
-│   │   ├── configs
-│   │   │   └── variables.cfg
-│   │   ├── data
-│   │   │   ├── gold_std
-│   │   │   ├── ideal_scan
-│   │   │   ├── quick_a
-│   │   │   ├── quick_b
-│   │   │   └── setup.py
-│   │   ├── finetuned_models
-│   │   └── results
-│   ├── damage
-│   ├── detector
-│   ├── map_alignment
-│   ├── mapper
-│   └── utils
+    ├── common
+        ├── configs
+            └── variables.cfg
+        ├── data
+            ├── gold_std
+            ├── ideal_scan
+            ├── quick_a
+            ├── quick_b
+            └── setup.py
+        ├── finetuned_models
+        └── results
+    ├── damage
+    ├── detector
+    ├── map_alignment
+    ├── mapper
+    └── utils
 
 ```
 
