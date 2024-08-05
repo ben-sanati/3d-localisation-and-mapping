@@ -11,7 +11,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 from numpy import random
-from skimage import transform
 from tqdm import tqdm
 from ultralytics import YOLOv10
 

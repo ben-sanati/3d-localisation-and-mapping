@@ -36,7 +36,7 @@ The AKT project not only met its initial goals but also positioned our client fo
 
 ## Bespoke Algorithms
 
-1. **2D Object Detection Bounding Box Transform to 3D Space** - this algorithm extends traditional 2D object detection by projecting the detected bounding boxes into 3D space. It converts 2D pixel coordinates from the depth image to 3D space coordinates such that it can estimate the real-world dimensions and positions of objects. This is performed in `src/utils/transformations.py`, within the `BBoxTransforms` class (`_depth_to_3d` method).
+1. **2D Object Detection Bounding Box Transform to 3D Space** - this algorithm extends 2D object detection by projecting the bounding boxes into 3D space. It converts 2D pixel coordinates from the depth image to 3D space coordinates such that it can estimate the real-world positions of objects. This is performed in `src/utils/transformations.py`, within the `_depth_to_3d` method.
 
 <table style="width: 100%;">
   <tr>
@@ -85,6 +85,7 @@ All Python dependencies are listed in the `requirements.txt` file. Install with 
 
 > **Note**: If you use the `--setup` flag after the first time, it still works fine, you're just wasting time with setup.
 
+
 > **Note**: There should never be a need to run the `gold_std` folder name as this should run automatically if it has not been done before (you still can if you wish).
 
 <details>
@@ -114,27 +115,27 @@ All Python dependencies are listed in the `requirements.txt` file. Install with 
 ## Folder Hierarchy
 
 
-```
-.
-├── run.sh
-└── task_def.py
-├── src
-│   ├── common
-│   │   ├── configs
-│   │   │   └── variables.cfg
-│   │   ├── data
-│   │   │   ├── gold_std
-│   │   │   ├── ideal_scan
-│   │   │   ├── quick_a
-│   │   │   ├── quick_b
-│   │   │   └── setup.py
-│   │   ├── finetuned_models
-│   │   └── results
-│   ├── damage
-│   ├── detector
-│   ├── map_alignment
-│   ├── mapper
-│   └── utils
+```plaintext
+  .
+  ├── run.sh
+  └── task_def.py
+  ├── src
+  │   ├── common
+  │   │   ├── configs
+  │   │   │   └── variables.cfg
+  │   │   ├── data
+  │   │   │   ├── gold_std
+  │   │   │   ├── ideal_scan
+  │   │   │   ├── quick_a
+  │   │   │   ├── quick_b
+  │   │   │   └── setup.py
+  │   │   ├── finetuned_models
+  │   │   └── results
+  │   ├── damage
+  │   ├── detector
+  │   ├── map_alignment
+  │   ├── mapper
+  │   └── utils
 ```
 
 - `task_def.py` - contains both the pipeline definition and the main file used by `run.sh`

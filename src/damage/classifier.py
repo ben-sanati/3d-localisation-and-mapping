@@ -11,8 +11,9 @@ from transformers import AutoImageProcessor, BeitForImageClassification
 
 class DamageDetector(nn.Module):
     """
-    Damage detection class that initializes the ViT setup and allows for processing all signs in all inspectionWalkthrough media.
-    To use the damage detector, call object() (do not use object.forward()). This will return the labels for each sign.
+    Damage detection class that initializes the ViT setup and allows for processing all signs in all
+    inspectionWalkthrough media. To use the damage detector, call object() (do not use object.forward()).
+    This will return the labels for each sign.
 
     Future Improvement: Accomodate batching for more efficient inference
 
@@ -21,8 +22,8 @@ class DamageDetector(nn.Module):
 
     def __init__(self, model_type="simple", initialise=True):
         """
-        @brief: Initializes the damage detector for processing. Sets up the classifier once, reducing the total processing time compared to
-        setting up on every inference call.
+        @brief: Initializes the damage detector for processing. Sets up the classifier once, reducing
+        the total processing time compared to setting up on every inference call.
 
         @authors: Benjamin Sanati
         """
@@ -89,8 +90,10 @@ class DamageDetector(nn.Module):
         return labels
 
     def get_class_label(self, class_idx):
-        id2label = lambda idx: self.model.config.id2label[idx].lower()
         if type(class_idx) == list:
-            return [id2label(idx) for idx in class_idx]
+            return [self._id2label(idx) for idx in class_idx]
         else:
-            return id2label(class_idx)
+            return self._id2label(class_idx)
+
+    def _id2label(self, idx):
+        return self.model.config.id2label[idx].lower()

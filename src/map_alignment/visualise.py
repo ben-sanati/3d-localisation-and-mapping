@@ -180,7 +180,10 @@ class VisualiseAlignment:
         return resized_img
 
     def create_video(
-        self, transformations, output_video="alignment_animation.mp4", fps=30,
+        self,
+        transformations,
+        output_video="alignment_animation.mp4",
+        fps=30,
     ):
         """
         Create a video of the accumulated transformations as meshes.

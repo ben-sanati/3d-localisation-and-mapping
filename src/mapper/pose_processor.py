@@ -1,8 +1,8 @@
 import argparse
+import logging
 import os
 import pickle
 import sys
-import logging
 from contextlib import contextmanager
 
 import cv2

@@ -167,7 +167,9 @@ class Pipeline:
         self.logger.info("3D Map Generated.")
 
     def _goldstd_vs_maintenance(
-        self, maintenance_pose_df, maintenance_optimised_bboxes,
+        self,
+        maintenance_pose_df,
+        maintenance_optimised_bboxes,
     ):
         # Align bboxes from maintenance scan onto the gold-std scan for comparison
         map_alignment = Alignment(
@@ -233,7 +235,7 @@ if __name__ == "__main__":
         setup_pipeline(data_folder, cfg_goldstd, None)
     else:
         # Make sure gold-std setup is done
-        if os.path.exists(cfg_goldstd.pickle_path) == False:
+        if not os.path.exists(cfg_goldstd.pickle_path):
             # We first have to run the setup with Gold-Std. before run
             logging.info("Performing setup before maintenance check.")
             setup_pipeline(data_folder, cfg_goldstd, None)
