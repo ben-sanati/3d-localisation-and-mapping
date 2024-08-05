@@ -11,8 +11,6 @@
 
 - [Localisation and Mapping of Signage on Train Vehicles - Innovate UK AKT Project](#localisation-and-mapping-of-signage-on-train-vehicles---innovate-uk-akt-project)
   - [Bespoke Algorithms](#bespoke-algorithms)
-  - [Usage](#usage)
-  - [Folder Hierarchy](#folder-hierarchy)
 
 This was an Innovate UK AKT project that was a collaboration between the University of Southampton and an industry client. The key goals of the project were as follows:
 
