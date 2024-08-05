@@ -15,14 +15,14 @@
 
 This was an Innovate UK AKT project that was a collaboration between the University of Southampton and an industry client. Due to the sensitive nature of the use case, this repository contains a streamlined version focused exclusively on the technical achievements of the project. The primary goals of the project were:
 
-- **Curating Gold-Standard and Maintenance Data**
+- **Curating a Bespoke Dataset**
   - Acquired on-site with real-world data, which formed the basis for testing and validating the solution.
 - **Self-Localization, Detection, and Mapping on Mobile Devices**
-  - Implemented using open-source software integrated into the backend processing pipeline, thoroughly tested for real-world performance.
+  - Implemented using open-source software integrated into the backend processing pipeline.
 - **Detection and Labelling in 3D Point Clouds**
-  - Utilized advanced computer vision and machine learning techniques to accurately map items within point clouds.
+  - Finetuned pretrained computer vision models and developed machine learning techniques to accurately map items within point clouds.
 - **Prototyping the Clients Product**
-  - Developed a system to detect missing and damaged objects of interest, essential for the client’s business processes.
+  - Developed a system to detect missing and damaged objects-of-interest, essential for the client’s business processes.
 
 <p align="center">
   <img src="readme_img/LiDARMap.gif" alt="Demo Video"/>
@@ -36,7 +36,7 @@ The AKT project not only met its initial goals but also positioned our client fo
 
 ## Bespoke Algorithms
 
-1. **2D Object Detection Bounding Box Transform to 3D Space** - this algorithm extends 2D object detection by projecting the bounding boxes into 3D space. It converts 2D pixel coordinates from the depth image to 3D space coordinates such that it can estimate the real-world positions of objects. This is performed in `src/utils/transformations.py`, within the `_depth_to_3d` method.
+1. **2D Object Detection Bounding Box Transform to 3D Space** - this algorithm extends 2D object detection by projecting the bounding boxes into 3D space. It converts 2D pixel coordinates from the depth image to 3D space coordinates such that it can estimate the real-world positions of objects.
 
 <table style="width: 100%;">
   <tr>
@@ -54,7 +54,7 @@ The AKT project not only met its initial goals but also positioned our client fo
   </tr>
 </table>
 
-2. **Map Alignment Algorithm** - the map alignment algorithm is designed to accurately align the gold-standard and comparison map representations. It employs image processing and machine learning techniques to perform the alignment. This is performed in `src/map_alignment/align.py`.
+2. **Map Alignment Algorithm** - the map alignment algorithm is designed to accurately align the gold-standard and comparison map representations. It employs image processing and machine learning techniques to perform the alignment.
 
 <p align="center">
   <img src="readme_img/alignment_visualisation.gif" alt="Demo Video" style="width: 60%"/>
@@ -62,7 +62,7 @@ The AKT project not only met its initial goals but also positioned our client fo
   <em>Alignment of 2 separate 3D point clouds using our algorithm.</em>
 </p>
 
-3. **Bounding Box Bipartite Matching for Missing Box Identification** - this algorithm addresses the problem of identifying missing objects of interest by comparing two scans. It employs a bipartite matching approach to pair detected bounding boxes from one scan with those from another scan. This is performed in `src/map_alignment/comparison.py`.
+3. **Bounding Box Bipartite Matching for Missing Box Identification** - this algorithm addresses the problem of identifying missing objects of interest by comparing two scans. It employs a bipartite matching approach to pair detected bounding boxes from one scan with those from another scan.
 
 <p align="center">
   <img src="readme_img/bp_match_algo.png" style="width: 60%"/>
