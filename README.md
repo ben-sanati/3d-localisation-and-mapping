@@ -1,4 +1,4 @@
-# Localisation and Mapping of Objects-of-Interest in 3D Point Clouds - Innovate UK AKT Project
+# Mapping and Localisation of Objects-of-Interest in 3D Point Clouds - Innovate UK AKT Project
 
 ![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54) &emsp;
 ![PyTorch](https://img.shields.io/badge/PyTorch-%23EE4C2C.svg?style=for-the-badge&logo=PyTorch&logoColor=white) &emsp;
