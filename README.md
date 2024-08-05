@@ -72,7 +72,7 @@ The AKT project not only met its initial goals but also positioned our client fo
 
 ## Usage
 
-All Python dependencies are listed in the `requirements.txt` file. Install with `pip install -r requirements.txt` while in the root directory.
+All Python dependencies are listed in the `requirements.txt` file. Create a new virtual environment `python3 -m venv env`, activate it `source env/bin/activate` and then installthe dependencies `pip install -r requirements.txt` while in the root directory.
 
 ### Data Folder Setup & Run
 
@@ -113,26 +113,27 @@ All Python dependencies are listed in the `requirements.txt` file. Install with 
 ## Folder Hierarchy
 
 ```plaintext
-.
-├── run.sh
-└── task_def.py
-├── src
-│   ├── common
-│   │   ├── configs
-│   │   │   └── variables.cfg
-│   │   ├── data
-│   │   │   ├── gold_std
-│   │   │   ├── ideal_scan
-│   │   │   ├── quick_a
-│   │   │   ├── quick_b
-│   │   │   └── setup.py
-│   │   ├── finetuned_models
-│   │   └── results
-│   ├── damage
-│   ├── detector
-│   ├── map_alignment
-│   ├── mapper
-│   └── utils
+
+    .
+    ├── run.sh
+    └── task_def.py
+    ├── src
+    │   ├── common
+    │   │   ├── configs
+    │   │   │   └── variables.cfg
+    │   │   ├── data
+    │   │   │   ├── gold_std
+    │   │   │   ├── ideal_scan
+    │   │   │   ├── quick_a
+    │   │   │   ├── quick_b
+    │   │   │   └── setup.py
+    │   │   ├── finetuned_models
+    │   │   └── results
+    │   ├── damage
+    │   ├── detector
+    │   ├── map_alignment
+    │   ├── mapper
+    │   └── utils
 
 ```
 
