@@ -112,29 +112,26 @@ All Python dependencies are listed in the `requirements.txt` file. Create a new 
 
 ## Folder Hierarchy
 
-```plaintext
-.
-├── run.sh
-└── task_def.py
-├── src
-    ├── common
-        ├── configs
-            └── variables.cfg
-        ├── data
-            ├── gold_std
-            ├── ideal_scan
-            ├── quick_a
-            ├── quick_b
-            └── setup.py
-        ├── finetuned_models
-        └── results
-    ├── damage
-    ├── detector
-    ├── map_alignment
-    ├── mapper
-    └── utils
-
-```
+    .
+    ├── run.sh
+    └── task_def.py
+    ├── src
+    │   ├── common
+    │   │   ├── configs
+    │   │   │   └── variables.cfg
+    │   │   ├── data
+    │   │   │   ├── gold_std
+    │   │   │   ├── ideal_scan
+    │   │   │   ├── quick_a
+    │   │   │   ├── quick_b
+    │   │   │   └── setup.py
+    │   │   ├── finetuned_models
+    │   │   └── results
+    │   ├── damage
+    │   ├── detector
+    │   ├── map_alignment
+    │   ├── mapper
+    │   └── utils
 
 - `task_def.py` - contains both the pipeline definition and the main file used by `run.sh`
 - `src` - contains all relevant packages utulised by the program
