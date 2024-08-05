@@ -307,6 +307,7 @@ if __name__ == "__main__":
         depth_height=cfg.depth_height,
         display_rgbd=True,
         display_3d=True,
+        verbose=True,
     )
     global_bboxes_data = pose_processing.get_global_coordinates()
 

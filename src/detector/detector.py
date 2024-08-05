@@ -194,24 +194,24 @@ class ObjectDetector(nn.Module):
                 [x1, y2],
                 [x2, y2],
                 [x2, y1]
-            ]
-        ).reshape((4, 2))
+            ], dtype=np.float32
+        )
 
         # Destination points: corners of the image
         dst = np.array(
             [
                 [0, 0],
-                [0, frame_image.shape[1]],
-                [frame_image.shape[0], frame_image.shape[1]],
-                [frame_image.shape[0], 0],
-            ]
-        ).reshape((4, 2))
+                [0, frame_image.shape[0] - 1],
+                [frame_image.shape[1] - 1, frame_image.shape[0] - 1],
+                [frame_image.shape[1] - 1, 0]
+            ], dtype=np.float32
+        )
 
         # Compute the homography matrix
-        tform = transform.estimate_transform('projective', src, dst)
+        H, status = cv2.findHomography(src, dst)
 
         # Apply the homography transformation
-        tf_img = transform.warp(frame_image, tform.inverse)
+        tf_img = cv2.warpPerspective(frame_image, H, (frame_image.shape[1], frame_image.shape[0]))
 
         # View image
         if self.view_img:
@@ -242,7 +242,7 @@ if __name__ == "__main__":
         iou_thresh=0.7,
         img_size=640,
         batch_size=16,
-        view_img=False,
+        view_img=True,
         save_img=f"src/common/data/{args.data}/processed_img",
         data_root=f"src/common/data/{args.data}/rtabmap_extract/data_rgb",
     )
