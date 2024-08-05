@@ -15,13 +15,13 @@
 This was an Innovate UK AKT project that was a collaboration between the University of Southampton and an industry client. Due to the sensitive nature of the use case, this repository contains a streamlined version focused exclusively on the technical achievements of the project. The primary goals of the project were:
 
 - **Curating Gold-Standard and Maintenance Data**
-  - Accomplished at a train depot, forming the basis for solution testing and validation.
+  - Acquired on-site with real-world data, which formed the basis for testing and validating the solution.
 - **Self-Localization, Detection, and Mapping on Mobile Devices**
   - Implemented using open-source software integrated into the backend processing pipeline, thoroughly tested for real-world performance.
 - **Detection and Labelling in 3D Point Clouds**
-  - Utilized advanced computer vision and machine learning techniques to accurately map signage within point clouds.
-- **Prototyping Non-Conformance Detection in Vehicles**
-  - Developed a system to identify missing and damaged signage within train vehicles, crucial for the auditing process.
+  - Utilized advanced computer vision and machine learning techniques to accurately map items within point clouds.
+- **Prototyping Clients Product**
+  - Developed a system to detect missing and damaged objects of interest, essential for the client’s business processes.
 
 <p align="center">
   <img src="readme_img/LiDARMap.gif" alt="Demo Video"/>
@@ -48,12 +48,12 @@ The AKT project not only met its initial goals but also positioned our client fo
   </tr>
   <tr>
     <td colspan="2" align="center">
-      <em>Processed 3D and signs localized in the global space.</em>
+      <em>Processed 3D objects of interest, localized in the global space.</em>
     </td>
   </tr>
 </table>
 
-2. **Map Alignment Algorithm** - the map alignment algorithm is designed to accurately align the gold-standard and maintenance map representations. It employs image processing and machine learning techniques to perform the alignment. This is performed in `src/map_alignment/align.py`.
+2. **Map Alignment Algorithm** - the map alignment algorithm is designed to accurately align the gold-standard and comparison map representations. It employs image processing and machine learning techniques to perform the alignment. This is performed in `src/map_alignment/align.py`.
 
 <p align="center">
   <img src="readme_img/alignment_visualisation.gif" alt="Demo Video" style="width: 60%"/>
@@ -61,10 +61,10 @@ The AKT project not only met its initial goals but also positioned our client fo
   <em>Alignment of 2 separate 3D point clouds using our algorithm.</em>
 </p>
 
-3. **Bounding Box Bipartite Matching for Missing Box Identification** - this algorithm addresses the problem of identifying missing signs in the maintenance scan compared to the gold-standard scan. By using a bipartite matching approach, it pairs detected bounding boxes from the maintenance scan to the gold-standard scans detected bounding boxes. This is performed in `src/map_alignment/comparison.py`.
+3. **Bounding Box Bipartite Matching for Missing Box Identification** - this algorithm addresses the problem of identifying missing objects of interest by comparing two scans. It employs a bipartite matching approach to pair detected bounding boxes from one scan with those from another scan. This is performed in `src/map_alignment/comparison.py`.
 
 <p align="center">
   <img src="readme_img/bp_match_algo.png" style="width: 60%"/>
   <br>
-  <em>Bounding box matching of gold-standard signage (red) to maintenance signage (green).</em>
+  <em>Bounding box matching between objects of interest in Scan 1 (red) and Scan 2 (green).</em>
 </p>
