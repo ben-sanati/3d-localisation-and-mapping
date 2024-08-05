@@ -101,6 +101,7 @@ class ProcessPose:
                 self.visualiser.display_imgs(
                     cv2.cvtColor(rgb_image_cv, cv2.COLOR_RGB2BGR),
                     depth_image_cv,
+                    bboxes=bboxes,
                     frame_index=frame_index,
                 )
 
@@ -169,15 +170,15 @@ class ProcessPose:
         frame_global_bboxes = []
 
         for bbox in bboxes:
-            # Define the 2D bbox in 3D space
-            corners = self.transforms.bbox_to_3d(bbox, self.img_size)
-
             # Scale bbox coordinates from initial image size to depth image width and height
-            scaled_corners = self.transforms.scale_bounding_box(
-                corners,
-                (self.img_size, self.img_size),
+            scaled_bbox = self.transforms.scale_bounding_box(
+                bbox,
+                (camera_intrinsics["image_width"], camera_intrinsics["image_height"]),
                 (self.depth_width, self.depth_height),
             )
+
+            # Define the 2D bbox in 3D space
+            corners = self.transforms.bbox_to_3d(scaled_bbox, self.img_size)
 
             # Generate 3D corners with z-values from median over bbox (x, y) range
             corners_3d = [
@@ -191,7 +192,7 @@ class ProcessPose:
                     cy,
                     self.scale_depth,
                 )
-                for x, y in scaled_corners
+                for x, y in corners
             ]
 
             # Get global coordinates
@@ -207,8 +208,8 @@ class ProcessPose:
             frame_global_bboxes.append(global_corners + bbox[-3:])
 
             if self.verbose:
-                self.logger.info(f"\tOriginal 2D Corners: {corners}")
-                self.logger.info(f"\tScaled 2D Corners: {scaled_corners}")
+                self.logger.info(f"\tOriginal 2D Corners: {bbox}")
+                self.logger.info(f"\tScaled 2D Corners: {scaled_bbox}")
                 self.logger.info(f"\t3D Corners before Mapping: {corners_3d}")
                 self.logger.info(f"\tGlobal 3D Coordinates: {global_corners}\n")
                 self.logger.info(
@@ -305,8 +306,8 @@ if __name__ == "__main__":
         img_size=cfg.img_size,
         depth_width=cfg.depth_width,
         depth_height=cfg.depth_height,
-        display_rgbd=True,
-        display_3d=True,
+        display_rgbd=False,
+        display_3d=False,
         verbose=True,
     )
     global_bboxes_data = pose_processing.get_global_coordinates()
@@ -317,4 +318,3 @@ if __name__ == "__main__":
 
     with open(cfg.pickle_path, "wb") as write_file:
         pickle.dump(data_to_save, write_file)
-        print("Variables stored to pickle file.", flush=True)
