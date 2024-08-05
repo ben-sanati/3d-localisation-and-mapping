@@ -21,7 +21,7 @@ This was an Innovate UK AKT project that was a collaboration between the Univers
   - Implemented using open-source software integrated into the backend processing pipeline, thoroughly tested for real-world performance.
 - **Detection and Labelling in 3D Point Clouds**
   - Utilized advanced computer vision and machine learning techniques to accurately map items within point clouds.
-- **Prototyping Clients Product**
+- **Prototyping the Clients Product**
   - Developed a system to detect missing and damaged objects of interest, essential for the client’s business processes.
 
 <p align="center">
