@@ -4,11 +4,12 @@ import os
 import pickle
 import sys
 import time
-import imageio
+
 import cv2
+import imageio
 import numpy as np
 import open3d as o3d
-from scipy.linalg import logm, expm
+from scipy.linalg import expm, logm
 
 sys.path.insert(0, r"../..")
 
@@ -19,7 +20,7 @@ class VisualiseAlignment:
     def __init__(self, base_map_filepath, comparison_map_filepath):
         self.base_pcd = o3d.io.read_point_cloud(base_map_filepath)
         self.comparison_pcd = o3d.io.read_point_cloud(comparison_map_filepath)
-        
+
         # Convert point clouds to meshes
         o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
         self.base_mesh, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
@@ -27,7 +28,10 @@ class VisualiseAlignment:
             depth=11,
             scale=1.0,
         )
-        self.comparison_mesh, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+        (
+            self.comparison_mesh,
+            _,
+        ) = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
             self.comparison_pcd,
             depth=11,
             scale=1.0,
@@ -60,7 +64,9 @@ class VisualiseAlignment:
 
         # Set camera to look at the center from the upper corner
         self.cam_look_at = center
-        self.cam_front = (self.cam_look_at - camera_position) / np.linalg.norm(self.cam_look_at - camera_position)
+        self.cam_front = (self.cam_look_at - camera_position) / np.linalg.norm(
+            self.cam_look_at - camera_position
+        )
         self.cam_up = [0.0, 0.0, 1.0]  # Assuming z is up in your coordinate system
 
         # Set camera parameters
@@ -84,7 +90,9 @@ class VisualiseAlignment:
             rotation, center = transformation
             self._apply_incremental_rotation(rotation, center, steps)
         else:
-            incremental_transformation = self._compute_incremental_transformation(transformation, steps)
+            incremental_transformation = self._compute_incremental_transformation(
+                transformation, steps
+            )
             self._apply_incremental_translation(incremental_transformation, steps)
 
     def _apply_incremental_translation(self, incremental_transformation, steps):
@@ -92,7 +100,9 @@ class VisualiseAlignment:
         Apply incremental transformation to the point cloud position.
         """
         for step in range(steps):
-            self.logger.info(f"Applying incremental transformation step {step + 1}/{steps}")
+            self.logger.info(
+                f"Applying incremental transformation step {step + 1}/{steps}"
+            )
             self.comparison_mesh.transform(incremental_transformation)
             self._capture_frame()
 
@@ -169,7 +179,9 @@ class VisualiseAlignment:
 
         return resized_img
 
-    def create_video(self, transformations, output_video="alignment_animation.mp4", fps=30):
+    def create_video(
+        self, transformations, output_video="alignment_animation.mp4", fps=30,
+    ):
         """
         Create a video of the accumulated transformations as meshes.
         Args:
@@ -182,12 +194,14 @@ class VisualiseAlignment:
 
         # Apply all transformations step by step
         for i, transformation in enumerate(transformations):
-            self.logger.info(f"Processing transformation {i + 1}/{len(transformations)}")
+            self.logger.info(
+                f"Processing transformation {i + 1}/{len(transformations)}"
+            )
             self._apply_incremental_transformation(transformation, steps=20)
 
         # Save frames as a video
         self.logger.info(f"Saving video to {output_video}")
-        with imageio.get_writer(output_video, fps=fps, format='mp4') as writer:
+        with imageio.get_writer(output_video, fps=fps, format="mp4") as writer:
             for i, frame in enumerate(self.frames):
                 self.logger.info(f"Writing frame {i + 1}/{self.total_frames}")
                 writer.append_data(frame)

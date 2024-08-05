@@ -1,8 +1,8 @@
 import argparse
+import logging
 import os
 import pickle
 import sys
-import logging
 
 import numpy as np
 import open3d as o3d

@@ -1,22 +1,24 @@
-import os
-import sys
-import cv2
+import argparse
 import glob
 import logging
-import argparse
+import os
+import shutil
+import sys
+from pathlib import Path
+
+import cv2
 import numpy as np
 import torch
-import shutil
-from tqdm import tqdm
-from ultralytics import YOLOv10
-from pathlib import Path
+import torch.nn as nn
 from numpy import random
 from skimage import transform
-import torch.nn as nn
+from tqdm import tqdm
+from ultralytics import YOLOv10
 
 sys.path.insert(0, r"../..")
 
 from src.damage.classifier import DamageDetector  # noqa
+
 
 class ObjectDetector(nn.Module):
     """
@@ -75,7 +77,7 @@ class ObjectDetector(nn.Module):
         """
         predictions = {}
         output_dir = "runs/detect/predict/labels"
-        
+
         # Run inference
         self.logger.info("Performing Inference...")
         self.model(
@@ -87,9 +89,11 @@ class ObjectDetector(nn.Module):
             save_conf=True,
             verbose=False,
         )
-        
+
         # Ensure all images have a corresponding txt file, create empty txt files if necessary
-        image_files = sorted(os.listdir(self.data_root), key=lambda x: int(Path(x).stem))
+        image_files = sorted(
+            os.listdir(self.data_root), key=lambda x: int(Path(x).stem)
+        )
         txt_files = sorted(Path(output_dir).glob("*.txt"), key=lambda x: int(x.stem))
         txt_file_names = {txt_file.stem for txt_file in txt_files}
 
@@ -134,23 +138,23 @@ class ObjectDetector(nn.Module):
         """
         Reads the predictions from the file and converts them to the expected format.
         """
-        with open(txt_file, 'r') as file:
+        with open(txt_file, "r") as file:
             lines = file.readlines()
-        
+
         predictions = []
         for line in lines:
             data = line.strip().split()
             label = int(data[0])
             x_center, y_center, w, h, conf = map(float, data[1:])
-            
+
             # Convert YOLO format (center x, center y, width, height) to (x1, y1, x2, y2)
             x1 = (x_center - w / 2) * img_width
             y1 = (y_center - h / 2) * img_height
             x2 = (x_center + w / 2) * img_width
             y2 = (y_center + h / 2) * img_height
-            
+
             predictions.append([x1, y1, x2, y2, conf, label])
-        
+
         return predictions
 
     def _processed_image(self, data, preds):
@@ -163,7 +167,15 @@ class ObjectDetector(nn.Module):
                 x1, y1, x2, y2, conf, label = bbox
                 color = self.colors[label]
                 cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), color, 2)
-                cv2.putText(img, self.names[label], (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+                cv2.putText(
+                    img,
+                    self.names[label],
+                    (int(x1), int(y1) - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.9,
+                    color,
+                    2,
+                )
 
             if self.view_img:
                 cv2.imshow("Image", img)
@@ -188,14 +200,7 @@ class ObjectDetector(nn.Module):
         x2, y2 = coord[2], coord[3]
 
         # Source points: corners of the box
-        src = np.array(
-            [
-                [x1, y1],
-                [x1, y2],
-                [x2, y2],
-                [x2, y1]
-            ], dtype=np.float32
-        )
+        src = np.array([[x1, y1], [x1, y2], [x2, y2], [x2, y1]], dtype=np.float32)
 
         # Destination points: corners of the image
         dst = np.array(
@@ -203,15 +208,18 @@ class ObjectDetector(nn.Module):
                 [0, 0],
                 [0, frame_image.shape[0] - 1],
                 [frame_image.shape[1] - 1, frame_image.shape[0] - 1],
-                [frame_image.shape[1] - 1, 0]
-            ], dtype=np.float32
+                [frame_image.shape[1] - 1, 0],
+            ],
+            dtype=np.float32,
         )
 
         # Compute the homography matrix
         H, status = cv2.findHomography(src, dst)
 
         # Apply the homography transformation
-        tf_img = cv2.warpPerspective(frame_image, H, (frame_image.shape[1], frame_image.shape[0]))
+        tf_img = cv2.warpPerspective(
+            frame_image, H, (frame_image.shape[1], frame_image.shape[0])
+        )
 
         # View image
         if self.view_img:
@@ -219,10 +227,12 @@ class ObjectDetector(nn.Module):
             cv2.waitKey(0)
             cv2.destroyAllWindows()
 
-        cv2.imwrite(f"{self.temp_damage_path}/{bbox_idx}.png", (tf_img * 255).astype(np.uint8))
+        cv2.imwrite(
+            f"{self.temp_damage_path}/{bbox_idx}.png", (tf_img * 255).astype(np.uint8)
+        )
 
     def _delete_all_files_in_directory(self):
-        files = glob.glob(os.path.join(self.temp_damage_path, '*'))
+        files = glob.glob(os.path.join(self.temp_damage_path, "*"))
         for f in files:
             os.remove(f)
 
@@ -231,7 +241,9 @@ if __name__ == "__main__":
     # Setup logging and argparse for configurations
     logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser(description="YOLOv10 Object Detection")
-    parser.add_argument("--data", type=str, help="Data Folder Name.", default="gold_std")
+    parser.add_argument(
+        "--data", type=str, help="Data Folder Name.", default="gold_std"
+    )
     args = parser.parse_args()
 
     os.chdir("../..")

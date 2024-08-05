@@ -1,12 +1,12 @@
-import os
-import sys
 import logging
+import os
 import os.path
+import sys
 
 import torch
 import torch.nn as nn
 from PIL import Image
-from transformers import BeitForImageClassification, AutoImageProcessor
+from transformers import AutoImageProcessor, BeitForImageClassification
 
 
 class DamageDetector(nn.Module):
@@ -18,6 +18,7 @@ class DamageDetector(nn.Module):
 
     @authors: Benjamin Sanati
     """
+
     def __init__(self, model_type="simple", initialise=True):
         """
         @brief: Initializes the damage detector for processing. Sets up the classifier once, reducing the total processing time compared to
@@ -32,10 +33,14 @@ class DamageDetector(nn.Module):
         elif model_type == "simple":
             repo_name = r"src/common/finetuned_models/BEiT-coarse-finetuned"
         else:
-            raise ValueError("Invalid model type. Choose either 'detailed' or 'simple'.")
+            raise ValueError(
+                "Invalid model type. Choose either 'detailed' or 'simple'."
+            )
 
         self.device = torch.device("cuda")
-        self.model = BeitForImageClassification.from_pretrained(repo_name).to(self.device)
+        self.model = BeitForImageClassification.from_pretrained(repo_name).to(
+            self.device
+        )
         if initialise:
             self._initialise_model(repo_name)
 
@@ -84,7 +89,7 @@ class DamageDetector(nn.Module):
         return labels
 
     def get_class_label(self, class_idx):
-        id2label = lambda idx : self.model.config.id2label[idx].lower()
+        id2label = lambda idx: self.model.config.id2label[idx].lower()
         if type(class_idx) == list:
             return [id2label(idx) for idx in class_idx]
         else:

@@ -1,17 +1,17 @@
 import argparse
+import logging
 import os
 import pickle
-import logging
 import sys
 
 from src.detector.database_query import ImageExtractor
 from src.detector.dataset import ImageDataset
 from src.detector.detector import ObjectDetector
+from src.map_alignment.align import Alignment
+from src.map_alignment.comparison import BBoxComparison
 from src.mapper.bbox_optimiser import BoundingBoxProcessor
 from src.mapper.database_query import PoseDataExtractor
 from src.mapper.mapping import Mapping
-from src.map_alignment.align import Alignment
-from src.map_alignment.comparison import BBoxComparison
 from src.mapper.pose_processor import ProcessPose
 from src.utils.config import ConfigLoader
 from torch.utils.data import DataLoader
@@ -57,7 +57,7 @@ class Pipeline:
             dataset,
         )
 
-        # Save as pickle file and load later to use in another script 
+        # Save as pickle file and load later to use in another script
         # Useful during development
         self.data_to_save["dataset"] = dataset
         self.data_to_save["dataloader"] = dataloader
@@ -166,7 +166,9 @@ class Pipeline:
         mapper.make_mesh()
         self.logger.info("3D Map Generated.")
 
-    def _goldstd_vs_maintenance(self, maintenance_pose_df, maintenance_optimised_bboxes):
+    def _goldstd_vs_maintenance(
+        self, maintenance_pose_df, maintenance_optimised_bboxes,
+    ):
         # Align bboxes from maintenance scan onto the gold-std scan for comparison
         map_alignment = Alignment(
             base_pose_df=self.goldstd_var["pose_df"],
@@ -203,6 +205,7 @@ def load_gold_std(pickle_path):
     except pickle.UnpicklingError:
         logging.error(f"Failed to unpickle the file {pickle_path}.")
         return None
+
 
 def setup_pipeline(data_folder, cfg, cfg_goldstd, goldstd_var=None):
     pipeline = Pipeline(data_folder, cfg, cfg_goldstd, goldstd_var)
