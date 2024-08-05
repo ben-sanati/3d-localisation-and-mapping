@@ -84,8 +84,6 @@ All Python dependencies are listed in the `requirements.txt` file. Install with 
     - Use `./run.sh --data <folder_name>` for subsequent runs.
 
 > **Note**: If you use the `--setup` flag after the first time, it still works fine, you're just wasting time with setup.
-
-
 > **Note**: There should never be a need to run the `gold_std` folder name as this should run automatically if it has not been done before (you still can if you wish).
 
 <details>
@@ -114,28 +112,28 @@ All Python dependencies are listed in the `requirements.txt` file. Install with 
 
 ## Folder Hierarchy
 
-
 ```plaintext
-  .
-  ├── run.sh
-  └── task_def.py
-  ├── src
-  │   ├── common
-  │   │   ├── configs
-  │   │   │   └── variables.cfg
-  │   │   ├── data
-  │   │   │   ├── gold_std
-  │   │   │   ├── ideal_scan
-  │   │   │   ├── quick_a
-  │   │   │   ├── quick_b
-  │   │   │   └── setup.py
-  │   │   ├── finetuned_models
-  │   │   └── results
-  │   ├── damage
-  │   ├── detector
-  │   ├── map_alignment
-  │   ├── mapper
-  │   └── utils
+.
+├── run.sh
+└── task_def.py
+├── src
+│   ├── common
+│   │   ├── configs
+│   │   │   └── variables.cfg
+│   │   ├── data
+│   │   │   ├── gold_std
+│   │   │   ├── ideal_scan
+│   │   │   ├── quick_a
+│   │   │   ├── quick_b
+│   │   │   └── setup.py
+│   │   ├── finetuned_models
+│   │   └── results
+│   ├── damage
+│   ├── detector
+│   ├── map_alignment
+│   ├── mapper
+│   └── utils
+
 ```
 
 - `task_def.py` - contains both the pipeline definition and the main file used by `run.sh`
