@@ -12,6 +12,8 @@
 - [Localisation and Mapping of Signage on Train Vehicles - Innovate UK AKT Project](#localisation-and-mapping-of-signage-on-train-vehicles---innovate-uk-akt-project)
   - [Bespoke Algorithms](#bespoke-algorithms)
   - [Open-Source Usage](#open-source-usage)
+    - [License](#license)
+    - [References](#references)
 
 This was an Innovate UK AKT project that was a collaboration between the University of Southampton and an industry client. Due to the sensitive nature of the use case, this repository contains a streamlined version focused exclusively on the technical achievements of the project. The primary goals of the project were:
 
