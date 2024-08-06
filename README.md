@@ -71,9 +71,9 @@ The AKT project not only met its initial goals but also positioned our client fo
 </p>
 
 ## Open-Source Usage
-- 3D open-source SLAM algorithms are based on RTAB-Map [1]
-- The object detector model is a finetuned YOLOv10 object detection model [2]
-- The image classification model is a finetuned BEiT image classification model [3]
+- 3D open-source SLAM algorithms utilise RTAB-Map [1]
+- The object detection model is a finetuned YOLOv10 model [2]
+- The image classification model is a finetuned BEiT model [3]
 
 ### References
 
