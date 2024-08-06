@@ -75,6 +75,10 @@ The AKT project not only met its initial goals but also positioned our client fo
 - The object detection model is a finetuned YOLOv10 model [2]
 - The image classification model is a finetuned BEiT model [3]
 
+### License
+
+The code in this repository has no associated IP and is therefore licensed under the [MIT License](LICENSE).
+
 ### References
 
 [1] Labbé, M. and Michaud, F., 2019. RTAB‐Map as an open‐source lidar and visual simultaneous localization and mapping library for large‐scale and long‐term online operation. Journal of field robotics, 36(2), pp.416-446. <br />
