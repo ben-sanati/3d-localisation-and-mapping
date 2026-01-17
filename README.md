@@ -15,16 +15,16 @@
     - [License](#license)
     - [References](#references)
 
-This was an Innovate UK AKT project that was a collaboration between the University of Southampton and an industry client. Due to the sensitive nature of the use case, this repository contains a streamlined version focused exclusively on the technical achievements of the project. The primary goals of the project were:
+This was a £25,000 Innovate UK–funded project, delivered in collaboration between the University of Southampton and an industry client. Due to the sensitive nature of the use case, this repository contains a streamlined version focused exclusively on the technical achievements of the project. The primary goals of the project were:
 
 - **Curating a Bespoke Dataset**
   - Acquired on-site with real-world data, which formed the basis for testing and validating the solution.
-- **Self-Localization, Detection, and Mapping on Mobile Devices**
+- **Self-Localisation, Detection, and Mapping on Mobile Devices**
   - Implemented using open-source software integrated into the backend processing pipeline.
 - **Detection and Labelling in 3D Point Clouds**
   - Finetuned pretrained computer vision models and developed machine learning techniques to accurately map items within point clouds.
-- **Prototyping the Clients Product**
-  - Developed a system to detect missing and damaged objects-of-interest, essential for the client’s business processes.
+- **Prototyping the Client's Product**
+  - Developed a system to detect missing and damaged objects of interest, essential for the client’s business processes.
 
 <p align="center">
   <img src="readme_img/LiDARMap.gif" alt="Demo Video"/>
@@ -32,7 +32,7 @@ This was an Innovate UK AKT project that was a collaboration between the Univers
   <em>RTAB-Map Generated LiDAR scan of vehicle interior.</em>
 </p>
 
-Beyond these core objectives, we delivered a strategic roadmap to guide our clients in transitioning to a data-driven organization. This roadmap included recommendations on integrating the developed technologies, adopting data-driven decision-making practices, and scaling product deployment for maximum impact.
+Beyond these core objectives, we delivered a strategic roadmap to guide our clients in transitioning to a data-driven organisation. This roadmap included recommendations on integrating the developed technologies, adopting data-driven decision-making practices, and scaling product deployment for maximum impact.
 
 The AKT project not only met its initial goals but also positioned our client for future growth and innovation by equipping them with the necessary tools, insights, and strategic direction to achieve their long-term objectives.
 
@@ -51,12 +51,12 @@ The AKT project not only met its initial goals but also positioned our client fo
   </tr>
   <tr>
     <td colspan="2" align="center">
-      <em>Processed 3D objects of interest, localized in the global space.</em>
+      <em>Processed 3D objects of interest, localised in the global space.</em>
     </td>
   </tr>
 </table>
 
-2. **Map Alignment Algorithm** - the map alignment algorithm is designed to accurately align the gold-standard and comparison map representations. It employs image processing and machine learning techniques to perform the alignment.
+2. **Map Alignment Algorithm** - The map alignment algorithm is designed to accurately align the gold-standard and comparison map representations. It employs image processing and machine learning techniques to perform the alignment.
 
 <p align="center">
   <img src="readme_img/alignment_visualisation.gif" alt="Demo Video" style="width: 60%"/>
@@ -64,7 +64,7 @@ The AKT project not only met its initial goals but also positioned our client fo
   <em>Alignment of 2 separate 3D point clouds using our algorithm.</em>
 </p>
 
-3. **Bounding Box Bipartite Matching for Missing Box Identification** - this algorithm addresses the problem of identifying missing objects of interest by comparing two scans. It employs a bipartite matching approach to pair detected bounding boxes from one scan with those from another scan.
+3. **Bounding Box Bipartite Matching for Missing Box Identification** - This algorithm addresses the problem of identifying missing objects of interest by comparing two scans. It employs a bipartite matching approach to pair detected bounding boxes from one scan with those from another scan.
 
 <p align="center">
   <img src="readme_img/bp_match_algo.png" style="width: 60%"/>
